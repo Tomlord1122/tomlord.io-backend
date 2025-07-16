@@ -49,6 +49,7 @@ type Querier interface {
 	UpdateBlog(ctx context.Context, arg UpdateBlogParams) (Blog, error)
 	UpdateBlogBySlug(ctx context.Context, arg UpdateBlogBySlugParams) (Blog, error)
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) (Message, error)
+	UpdateMessageThumbCount(ctx context.Context, messageID pgtype.UUID) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserByGoogleID(ctx context.Context, arg UpdateUserByGoogleIDParams) (User, error)
 }

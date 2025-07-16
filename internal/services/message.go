@@ -15,17 +15,17 @@ type MessageService struct {
 }
 
 type MessageInfo struct {
-	ID          string `json:"id"`
-	UserID      string `json:"user_id"`
-	UserName    string `json:"user_name"`
-	UserPicture string `json:"user_picture"`
-	PostSlug    string `json:"post_slug"`
-	BlogID      string `json:"blog_id,omitempty"` // New field for blog reference
-	Message     string `json:"message"`
-	ThumbCount  int32  `json:"thumb_count"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-	UserThumbed bool   `json:"user_thumbed,omitempty"`
+	ID          string  `json:"id"`
+	UserID      string  `json:"user_id"`
+	UserName    string  `json:"user_name"`
+	UserPicture string  `json:"user_picture"`
+	PostSlug    string  `json:"post_slug"`
+	BlogID      *string `json:"blog_id,omitempty"` // New field for blog reference
+	Message     string  `json:"message"`
+	ThumbCount  int32   `json:"thumb_count"`
+	CreatedAt   string  `json:"created_at"`
+	UpdatedAt   string  `json:"updated_at"`
+	UserThumbed bool    `json:"user_thumbed,omitempty"`
 }
 
 type CreateMessageRequest struct {
@@ -112,7 +112,7 @@ func (m *MessageService) CreateMessage(ctx context.Context, req CreateMessageReq
 		UserName:    messageWithUser.UserName,
 		UserPicture: messageWithUser.UserPictureUrl.String,
 		PostSlug:    message.PostSlug,
-		BlogID:      blogID,
+		BlogID:      &blogID,
 		Message:     message.Message,
 		ThumbCount:  message.ThumbCount.Int32,
 		CreatedAt:   message.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
@@ -225,7 +225,7 @@ func (m *MessageService) GetMessagesByBlogID(ctx context.Context, req ListMessag
 			UserName:    msg.UserName,
 			UserPicture: msg.UserPictureUrl.String,
 			PostSlug:    msg.PostSlug,
-			BlogID:      blogID,
+			BlogID:      &blogID,
 			Message:     msg.Message,
 			ThumbCount:  int32(msg.ThumbCount_2), // Use the calculated thumb count from the query
 			CreatedAt:   msg.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
@@ -286,7 +286,7 @@ func (m *MessageService) GetMessagesByBlogSlug(ctx context.Context, req ListMess
 			UserName:    msg.UserName,
 			UserPicture: msg.UserPictureUrl.String,
 			PostSlug:    msg.PostSlug,
-			BlogID:      blogID,
+			BlogID:      &blogID,
 			Message:     msg.Message,
 			ThumbCount:  int32(msg.ThumbCount_2), // Use the calculated thumb count from the query
 			CreatedAt:   msg.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
@@ -343,12 +343,18 @@ func (m *MessageService) UpdateMessage(ctx context.Context, req UpdateMessageReq
 		return nil, fmt.Errorf("failed to get updated message: %w", err)
 	}
 
+	blogID := ""
+	if message.BlogID.Valid {
+		blogID = uuid.UUID(message.BlogID.Bytes).String()
+	}
+
 	return &MessageInfo{
 		ID:          uuid.UUID(message.ID.Bytes).String(),
 		UserID:      uuid.UUID(message.UserID.Bytes).String(),
 		UserName:    messageWithUser.UserName,
 		UserPicture: messageWithUser.UserPictureUrl.String,
 		PostSlug:    message.PostSlug,
+		BlogID:      &blogID,
 		Message:     message.Message,
 		ThumbCount:  message.ThumbCount.Int32,
 		CreatedAt:   message.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
@@ -413,7 +419,6 @@ func (m *MessageService) ToggleMessageThumb(ctx context.Context, messageID, user
 		if err != nil {
 			return false, fmt.Errorf("failed to remove thumb: %w", err)
 		}
-		return false, nil
 	} else {
 		// Add thumb
 		_, err = queries.CreateMessageThumb(ctx, db.CreateMessageThumbParams{
@@ -423,23 +428,70 @@ func (m *MessageService) ToggleMessageThumb(ctx context.Context, messageID, user
 		if err != nil {
 			return false, fmt.Errorf("failed to add thumb: %w", err)
 		}
-		return true, nil
 	}
+
+	// Update the thumb_count in the messages table
+	err = queries.UpdateMessageThumbCount(ctx, messageUUID)
+	if err != nil {
+		return false, fmt.Errorf("failed to update message thumb count: %w", err)
+	}
+
+	return !thumbed, nil
 }
 
-// GetThumbCount gets the thumb count for a message
-func (m *MessageService) GetThumbCount(ctx context.Context, messageID string) (int64, error) {
-	queries := m.dbService.GetQueries()
-
-	messageUUID := pgtype.UUID{}
-	if err := messageUUID.Scan(messageID); err != nil {
+// GetThumbCount returns the current thumb count for a message
+func (s *MessageService) GetThumbCount(ctx context.Context, messageID string) (int32, error) {
+	// Parse the message ID
+	messageUUID, err := uuid.Parse(messageID)
+	if err != nil {
 		return 0, fmt.Errorf("invalid message ID: %w", err)
 	}
 
-	count, err := queries.GetThumbCountForMessage(ctx, messageUUID)
+	var pgMessageID pgtype.UUID
+	pgMessageID.Bytes = messageUUID
+	pgMessageID.Valid = true
+
+	count, err := s.dbService.GetQueries().GetThumbCountForMessage(ctx, pgMessageID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get thumb count: %w", err)
 	}
 
-	return count, nil
+	return int32(count), nil
+}
+
+// GetMessageByID returns a single message by its ID
+func (s *MessageService) GetMessageByID(ctx context.Context, messageID string) (*MessageInfo, error) {
+	// Parse the message ID
+	messageUUID, err := uuid.Parse(messageID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid message ID: %w", err)
+	}
+
+	var pgMessageID pgtype.UUID
+	pgMessageID.Bytes = messageUUID
+	pgMessageID.Valid = true
+
+	message, err := s.dbService.GetQueries().GetMessageByID(ctx, pgMessageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get message: %w", err)
+	}
+
+	var blogID *string
+	if message.BlogID.Valid {
+		blogIDStr := uuid.UUID(message.BlogID.Bytes).String()
+		blogID = &blogIDStr
+	}
+
+	return &MessageInfo{
+		ID:          uuid.UUID(message.ID.Bytes).String(),
+		UserID:      uuid.UUID(message.UserID.Bytes).String(),
+		UserName:    message.UserName,
+		UserPicture: message.UserPictureUrl.String,
+		PostSlug:    message.PostSlug,
+		BlogID:      blogID,
+		Message:     message.Message,
+		ThumbCount:  int32(message.ThumbCount_2), // Use the dynamically calculated thumb count
+		CreatedAt:   message.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:   message.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+	}, nil
 }

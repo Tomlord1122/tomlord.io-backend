@@ -9,9 +9,15 @@ VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetMessageByID :one
-SELECT m.*, u.name as user_name, u.picture_url as user_picture_url
+SELECT m.*, u.name as user_name, u.picture_url as user_picture_url,
+       COALESCE(thumb_counts.count, 0) as thumb_count
 FROM messages m
 JOIN users u ON m.user_id = u.id
+LEFT JOIN (
+    SELECT message_id, COUNT(*) as count
+    FROM message_thumbs
+    GROUP BY message_id
+) thumb_counts ON m.id = thumb_counts.message_id
 WHERE m.id = $1;
 
 -- name: GetMessagesByPostSlug :many
@@ -86,4 +92,13 @@ WHERE blog_id = $1;
 -- name: CountMessagesByBlogSlug :one
 SELECT COUNT(*) FROM messages m
 JOIN blogs b ON m.blog_id = b.id
-WHERE b.slug = $1; 
+WHERE b.slug = $1;
+
+-- name: UpdateMessageThumbCount :exec
+UPDATE messages 
+SET thumb_count = (
+    SELECT COUNT(*) 
+    FROM message_thumbs 
+    WHERE message_id = $1
+)
+WHERE id = $1; 

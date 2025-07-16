@@ -11,6 +11,7 @@ import (
 	"github.com/markbates/goth/gothic"
 	"tomlord.io-backend/internal/middleware"
 	"tomlord.io-backend/internal/services"
+	"tomlord.io-backend/internal/websocket"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -28,6 +29,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.GET("/", s.HelloWorldHandler)
 	r.GET("/health", s.healthHandler)
 	r.GET("/debug/jwt", s.debugJWTHandler)
+
+	// WebSocket route
+	r.GET("/ws", s.authMiddleware.OptionalAuth(), s.websocketHandler)
 
 	// Auth routes
 	auth := r.Group("/auth")
@@ -223,6 +227,10 @@ func (s *Server) createMessageHandler(c *gin.Context) {
 		return
 	}
 
+	// Broadcast new comment to WebSocket clients
+	room := req.PostSlug // Always use PostSlug as the room name for consistency
+	s.wsHub.BroadcastToRoom(room, websocket.MessageTypeNewComment, message)
+
 	c.JSON(http.StatusCreated, gin.H{"message": message})
 }
 
@@ -283,6 +291,13 @@ func (s *Server) toggleThumbHandler(c *gin.Context) {
 		return
 	}
 
+	// Get message info first to determine the room for broadcasting
+	message, err := s.messageService.GetMessageByID(c.Request.Context(), messageID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+
 	thumbed, err := s.messageService.ToggleMessageThumb(c.Request.Context(), messageID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to toggle thumb"})
@@ -295,6 +310,20 @@ func (s *Server) toggleThumbHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get thumb count"})
 		return
 	}
+
+	// Broadcast thumb update to WebSocket clients
+	room := message.PostSlug // Always use PostSlug as the room name for consistency
+
+	thumbData := map[string]interface{}{
+		"message_id":  messageID,
+		"thumbed":     thumbed,
+		"thumb_count": count,
+		"user_id":     userID,
+	}
+
+	// Debug logging
+	fmt.Printf("Broadcasting thumb update to room '%s': %+v\n", room, thumbData)
+	s.wsHub.BroadcastToRoom(room, websocket.MessageTypeThumbUpdate, thumbData)
 
 	c.JSON(http.StatusOK, gin.H{
 		"thumbed":     thumbed,
@@ -471,4 +500,14 @@ func (s *Server) getMessagesByBlogSlugHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
+}
+
+// WebSocket handler
+func (s *Server) websocketHandler(c *gin.Context) {
+	userID := ""
+	if currentUserID, exists := middleware.GetCurrentUserID(c); exists {
+		userID = currentUserID
+	}
+
+	s.wsHub.HandleWebSocket(c.Writer, c.Request, userID)
 }

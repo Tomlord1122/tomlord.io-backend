@@ -126,9 +126,15 @@ func (q *Queries) DeleteMessage(ctx context.Context, arg DeleteMessageParams) er
 }
 
 const getMessageByID = `-- name: GetMessageByID :one
-SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, m.blog_id, u.name as user_name, u.picture_url as user_picture_url
+SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, m.blog_id, u.name as user_name, u.picture_url as user_picture_url,
+       COALESCE(thumb_counts.count, 0) as thumb_count
 FROM messages m
 JOIN users u ON m.user_id = u.id
+LEFT JOIN (
+    SELECT message_id, COUNT(*) as count
+    FROM message_thumbs
+    GROUP BY message_id
+) thumb_counts ON m.id = thumb_counts.message_id
 WHERE m.id = $1
 `
 
@@ -143,6 +149,7 @@ type GetMessageByIDRow struct {
 	BlogID         pgtype.UUID        `json:"blog_id"`
 	UserName       string             `json:"user_name"`
 	UserPictureUrl pgtype.Text        `json:"user_picture_url"`
+	ThumbCount_2   int64              `json:"thumb_count_2"`
 }
 
 func (q *Queries) GetMessageByID(ctx context.Context, id pgtype.UUID) (GetMessageByIDRow, error) {
@@ -159,6 +166,7 @@ func (q *Queries) GetMessageByID(ctx context.Context, id pgtype.UUID) (GetMessag
 		&i.BlogID,
 		&i.UserName,
 		&i.UserPictureUrl,
+		&i.ThumbCount_2,
 	)
 	return i, err
 }
@@ -453,4 +461,19 @@ func (q *Queries) UpdateMessage(ctx context.Context, arg UpdateMessageParams) (M
 		&i.BlogID,
 	)
 	return i, err
+}
+
+const updateMessageThumbCount = `-- name: UpdateMessageThumbCount :exec
+UPDATE messages 
+SET thumb_count = (
+    SELECT COUNT(*) 
+    FROM message_thumbs 
+    WHERE message_id = $1
+)
+WHERE id = $1
+`
+
+func (q *Queries) UpdateMessageThumbCount(ctx context.Context, messageID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, updateMessageThumbCount, messageID)
+	return err
 }
