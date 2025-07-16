@@ -22,7 +22,7 @@ services:
     networks:
       - blueprint
   psql_bp:
-    image: postgres:latest
+    image: postgres:17.5-alpine3.22
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${BLUEPRINT_DB_DATABASE}
