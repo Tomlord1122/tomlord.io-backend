@@ -21,6 +21,7 @@ type Server struct {
 	dbService      database.DBService
 	authService    *auth.AuthService
 	messageService *services.MessageService
+	blogService    *services.BlogService
 	authMiddleware *middleware.AuthMiddleware
 }
 
@@ -43,6 +44,9 @@ func NewServer() (*http.Server, error) {
 	// Initialize message service
 	messageService := services.NewMessageService(dbService)
 
+	// Initialize blog service
+	blogService := services.NewBlogService(dbService)
+
 	// Initialize auth middleware
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -55,6 +59,7 @@ func NewServer() (*http.Server, error) {
 		dbService:      dbService,
 		authService:    authService,
 		messageService: messageService,
+		blogService:    blogService,
 		authMiddleware: authMiddleware,
 	}
 

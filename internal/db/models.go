@@ -8,6 +8,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Blog struct {
+	ID          pgtype.UUID        `json:"id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Date        pgtype.Date        `json:"date"`
+	Lang        string             `json:"lang"`
+	Duration    string             `json:"duration"`
+	Tags        []string           `json:"tags"`
+	Description pgtype.Text        `json:"description"`
+	IsPublished pgtype.Bool        `json:"is_published"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Message struct {
 	ID         pgtype.UUID        `json:"id"`
 	UserID     pgtype.UUID        `json:"user_id"`
@@ -16,6 +30,7 @@ type Message struct {
 	ThumbCount pgtype.Int4        `json:"thumb_count"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+	BlogID     pgtype.UUID        `json:"blog_id"`
 }
 
 type MessageThumb struct {

@@ -11,6 +11,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countMessagesByBlogID = `-- name: CountMessagesByBlogID :one
+SELECT COUNT(*) FROM messages
+WHERE blog_id = $1
+`
+
+func (q *Queries) CountMessagesByBlogID(ctx context.Context, blogID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countMessagesByBlogID, blogID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countMessagesByBlogSlug = `-- name: CountMessagesByBlogSlug :one
+SELECT COUNT(*) FROM messages m
+JOIN blogs b ON m.blog_id = b.id
+WHERE b.slug = $1
+`
+
+func (q *Queries) CountMessagesByBlogSlug(ctx context.Context, slug string) (int64, error) {
+	row := q.db.QueryRow(ctx, countMessagesByBlogSlug, slug)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countMessagesByPostSlug = `-- name: CountMessagesByPostSlug :one
 SELECT COUNT(*) FROM messages
 WHERE post_slug = $1
@@ -26,7 +51,7 @@ func (q *Queries) CountMessagesByPostSlug(ctx context.Context, postSlug string) 
 const createMessage = `-- name: CreateMessage :one
 INSERT INTO messages (user_id, post_slug, message)
 VALUES ($1, $2, $3)
-RETURNING id, user_id, post_slug, message, thumb_count, created_at, updated_at
+RETURNING id, user_id, post_slug, message, thumb_count, created_at, updated_at, blog_id
 `
 
 type CreateMessageParams struct {
@@ -46,6 +71,41 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.ThumbCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BlogID,
+	)
+	return i, err
+}
+
+const createMessageWithBlogID = `-- name: CreateMessageWithBlogID :one
+INSERT INTO messages (user_id, blog_id, post_slug, message)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, post_slug, message, thumb_count, created_at, updated_at, blog_id
+`
+
+type CreateMessageWithBlogIDParams struct {
+	UserID   pgtype.UUID `json:"user_id"`
+	BlogID   pgtype.UUID `json:"blog_id"`
+	PostSlug string      `json:"post_slug"`
+	Message  string      `json:"message"`
+}
+
+func (q *Queries) CreateMessageWithBlogID(ctx context.Context, arg CreateMessageWithBlogIDParams) (Message, error) {
+	row := q.db.QueryRow(ctx, createMessageWithBlogID,
+		arg.UserID,
+		arg.BlogID,
+		arg.PostSlug,
+		arg.Message,
+	)
+	var i Message
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PostSlug,
+		&i.Message,
+		&i.ThumbCount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BlogID,
 	)
 	return i, err
 }
@@ -66,7 +126,7 @@ func (q *Queries) DeleteMessage(ctx context.Context, arg DeleteMessageParams) er
 }
 
 const getMessageByID = `-- name: GetMessageByID :one
-SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, u.name as user_name, u.picture_url as user_picture_url
+SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, m.blog_id, u.name as user_name, u.picture_url as user_picture_url
 FROM messages m
 JOIN users u ON m.user_id = u.id
 WHERE m.id = $1
@@ -80,6 +140,7 @@ type GetMessageByIDRow struct {
 	ThumbCount     pgtype.Int4        `json:"thumb_count"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	BlogID         pgtype.UUID        `json:"blog_id"`
 	UserName       string             `json:"user_name"`
 	UserPictureUrl pgtype.Text        `json:"user_picture_url"`
 }
@@ -95,14 +156,152 @@ func (q *Queries) GetMessageByID(ctx context.Context, id pgtype.UUID) (GetMessag
 		&i.ThumbCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BlogID,
 		&i.UserName,
 		&i.UserPictureUrl,
 	)
 	return i, err
 }
 
+const getMessagesByBlogID = `-- name: GetMessagesByBlogID :many
+SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, m.blog_id, u.name as user_name, u.picture_url as user_picture_url,
+       COALESCE(thumb_counts.count, 0) as thumb_count
+FROM messages m
+JOIN users u ON m.user_id = u.id
+LEFT JOIN (
+    SELECT message_id, COUNT(*) as count
+    FROM message_thumbs
+    GROUP BY message_id
+) thumb_counts ON m.id = thumb_counts.message_id
+WHERE m.blog_id = $1
+ORDER BY m.created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetMessagesByBlogIDParams struct {
+	BlogID pgtype.UUID `json:"blog_id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
+}
+
+type GetMessagesByBlogIDRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	PostSlug       string             `json:"post_slug"`
+	Message        string             `json:"message"`
+	ThumbCount     pgtype.Int4        `json:"thumb_count"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	BlogID         pgtype.UUID        `json:"blog_id"`
+	UserName       string             `json:"user_name"`
+	UserPictureUrl pgtype.Text        `json:"user_picture_url"`
+	ThumbCount_2   int64              `json:"thumb_count_2"`
+}
+
+func (q *Queries) GetMessagesByBlogID(ctx context.Context, arg GetMessagesByBlogIDParams) ([]GetMessagesByBlogIDRow, error) {
+	rows, err := q.db.Query(ctx, getMessagesByBlogID, arg.BlogID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetMessagesByBlogIDRow{}
+	for rows.Next() {
+		var i GetMessagesByBlogIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.PostSlug,
+			&i.Message,
+			&i.ThumbCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.BlogID,
+			&i.UserName,
+			&i.UserPictureUrl,
+			&i.ThumbCount_2,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getMessagesByBlogSlug = `-- name: GetMessagesByBlogSlug :many
+SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, m.blog_id, u.name as user_name, u.picture_url as user_picture_url,
+       COALESCE(thumb_counts.count, 0) as thumb_count, b.slug as blog_slug
+FROM messages m
+JOIN users u ON m.user_id = u.id
+JOIN blogs b ON m.blog_id = b.id
+LEFT JOIN (
+    SELECT message_id, COUNT(*) as count
+    FROM message_thumbs
+    GROUP BY message_id
+) thumb_counts ON m.id = thumb_counts.message_id
+WHERE b.slug = $1
+ORDER BY m.created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetMessagesByBlogSlugParams struct {
+	Slug   string `json:"slug"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+type GetMessagesByBlogSlugRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	PostSlug       string             `json:"post_slug"`
+	Message        string             `json:"message"`
+	ThumbCount     pgtype.Int4        `json:"thumb_count"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	BlogID         pgtype.UUID        `json:"blog_id"`
+	UserName       string             `json:"user_name"`
+	UserPictureUrl pgtype.Text        `json:"user_picture_url"`
+	ThumbCount_2   int64              `json:"thumb_count_2"`
+	BlogSlug       string             `json:"blog_slug"`
+}
+
+func (q *Queries) GetMessagesByBlogSlug(ctx context.Context, arg GetMessagesByBlogSlugParams) ([]GetMessagesByBlogSlugRow, error) {
+	rows, err := q.db.Query(ctx, getMessagesByBlogSlug, arg.Slug, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetMessagesByBlogSlugRow{}
+	for rows.Next() {
+		var i GetMessagesByBlogSlugRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.PostSlug,
+			&i.Message,
+			&i.ThumbCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.BlogID,
+			&i.UserName,
+			&i.UserPictureUrl,
+			&i.ThumbCount_2,
+			&i.BlogSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getMessagesByPostSlug = `-- name: GetMessagesByPostSlug :many
-SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, u.name as user_name, u.picture_url as user_picture_url,
+SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, m.blog_id, u.name as user_name, u.picture_url as user_picture_url,
        COALESCE(thumb_counts.count, 0) as thumb_count
 FROM messages m
 JOIN users u ON m.user_id = u.id
@@ -130,6 +329,7 @@ type GetMessagesByPostSlugRow struct {
 	ThumbCount     pgtype.Int4        `json:"thumb_count"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	BlogID         pgtype.UUID        `json:"blog_id"`
 	UserName       string             `json:"user_name"`
 	UserPictureUrl pgtype.Text        `json:"user_picture_url"`
 	ThumbCount_2   int64              `json:"thumb_count_2"`
@@ -152,6 +352,7 @@ func (q *Queries) GetMessagesByPostSlug(ctx context.Context, arg GetMessagesByPo
 			&i.ThumbCount,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.BlogID,
 			&i.UserName,
 			&i.UserPictureUrl,
 			&i.ThumbCount_2,
@@ -167,7 +368,7 @@ func (q *Queries) GetMessagesByPostSlug(ctx context.Context, arg GetMessagesByPo
 }
 
 const getMessagesByUser = `-- name: GetMessagesByUser :many
-SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, u.name as user_name, u.picture_url as user_picture_url
+SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, m.blog_id, u.name as user_name, u.picture_url as user_picture_url
 FROM messages m
 JOIN users u ON m.user_id = u.id
 WHERE m.user_id = $1
@@ -189,6 +390,7 @@ type GetMessagesByUserRow struct {
 	ThumbCount     pgtype.Int4        `json:"thumb_count"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	BlogID         pgtype.UUID        `json:"blog_id"`
 	UserName       string             `json:"user_name"`
 	UserPictureUrl pgtype.Text        `json:"user_picture_url"`
 }
@@ -210,6 +412,7 @@ func (q *Queries) GetMessagesByUser(ctx context.Context, arg GetMessagesByUserPa
 			&i.ThumbCount,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.BlogID,
 			&i.UserName,
 			&i.UserPictureUrl,
 		); err != nil {
@@ -227,7 +430,7 @@ const updateMessage = `-- name: UpdateMessage :one
 UPDATE messages
 SET message = $2, updated_at = NOW()
 WHERE id = $1 AND user_id = $3
-RETURNING id, user_id, post_slug, message, thumb_count, created_at, updated_at
+RETURNING id, user_id, post_slug, message, thumb_count, created_at, updated_at, blog_id
 `
 
 type UpdateMessageParams struct {
@@ -247,6 +450,7 @@ func (q *Queries) UpdateMessage(ctx context.Context, arg UpdateMessageParams) (M
 		&i.ThumbCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BlogID,
 	)
 	return i, err
 }

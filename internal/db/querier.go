@@ -12,22 +12,42 @@ import (
 
 type Querier interface {
 	CheckUserThumbedMessage(ctx context.Context, arg CheckUserThumbedMessageParams) (bool, error)
+	CountBlogs(ctx context.Context) (int64, error)
+	CountBlogsByTag(ctx context.Context, tags []string) (int64, error)
+	CountMessagesByBlogID(ctx context.Context, blogID pgtype.UUID) (int64, error)
+	CountMessagesByBlogSlug(ctx context.Context, slug string) (int64, error)
 	CountMessagesByPostSlug(ctx context.Context, postSlug string) (int64, error)
+	CreateBlog(ctx context.Context, arg CreateBlogParams) (Blog, error)
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
 	CreateMessageThumb(ctx context.Context, arg CreateMessageThumbParams) (MessageThumb, error)
+	CreateMessageWithBlogID(ctx context.Context, arg CreateMessageWithBlogIDParams) (Message, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteBlog(ctx context.Context, id pgtype.UUID) error
+	DeleteBlogBySlug(ctx context.Context, slug string) error
 	DeleteMessage(ctx context.Context, arg DeleteMessageParams) error
 	DeleteMessageThumb(ctx context.Context, arg DeleteMessageThumbParams) error
 	DeleteUser(ctx context.Context, id pgtype.UUID) error
+	GetAllBlogs(ctx context.Context, arg GetAllBlogsParams) ([]Blog, error)
+	GetBlogByID(ctx context.Context, id pgtype.UUID) (Blog, error)
+	GetBlogBySlug(ctx context.Context, slug string) (Blog, error)
+	GetBlogWithMessageCount(ctx context.Context, id pgtype.UUID) (GetBlogWithMessageCountRow, error)
+	GetBlogWithMessageCountBySlug(ctx context.Context, slug string) (GetBlogWithMessageCountBySlugRow, error)
+	GetBlogs(ctx context.Context, arg GetBlogsParams) ([]Blog, error)
+	GetBlogsByLang(ctx context.Context, arg GetBlogsByLangParams) ([]Blog, error)
+	GetBlogsByTag(ctx context.Context, arg GetBlogsByTagParams) ([]Blog, error)
 	GetMessageByID(ctx context.Context, id pgtype.UUID) (GetMessageByIDRow, error)
 	GetMessageThumbsByUser(ctx context.Context, arg GetMessageThumbsByUserParams) ([]GetMessageThumbsByUserRow, error)
 	GetMessageThumbsWithUsers(ctx context.Context, arg GetMessageThumbsWithUsersParams) ([]GetMessageThumbsWithUsersRow, error)
+	GetMessagesByBlogID(ctx context.Context, arg GetMessagesByBlogIDParams) ([]GetMessagesByBlogIDRow, error)
+	GetMessagesByBlogSlug(ctx context.Context, arg GetMessagesByBlogSlugParams) ([]GetMessagesByBlogSlugRow, error)
 	GetMessagesByPostSlug(ctx context.Context, arg GetMessagesByPostSlugParams) ([]GetMessagesByPostSlugRow, error)
 	GetMessagesByUser(ctx context.Context, arg GetMessagesByUserParams) ([]GetMessagesByUserRow, error)
 	GetThumbCountForMessage(ctx context.Context, messageID pgtype.UUID) (int64, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByGoogleID(ctx context.Context, googleID string) (User, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
+	UpdateBlog(ctx context.Context, arg UpdateBlogParams) (Blog, error)
+	UpdateBlogBySlug(ctx context.Context, arg UpdateBlogBySlugParams) (Blog, error)
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) (Message, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserByGoogleID(ctx context.Context, arg UpdateUserByGoogleIDParams) (User, error)

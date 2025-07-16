@@ -20,6 +20,7 @@ type MessageInfo struct {
 	UserName    string `json:"user_name"`
 	UserPicture string `json:"user_picture"`
 	PostSlug    string `json:"post_slug"`
+	BlogID      string `json:"blog_id,omitempty"` // New field for blog reference
 	Message     string `json:"message"`
 	ThumbCount  int32  `json:"thumb_count"`
 	CreatedAt   string `json:"created_at"`
@@ -30,6 +31,7 @@ type MessageInfo struct {
 type CreateMessageRequest struct {
 	UserID   string `json:"user_id" binding:"required"`
 	PostSlug string `json:"post_slug" binding:"required"`
+	BlogID   string `json:"blog_id,omitempty"` // Optional blog ID
 	Message  string `json:"message" binding:"required"`
 }
 
@@ -40,7 +42,9 @@ type UpdateMessageRequest struct {
 }
 
 type ListMessagesRequest struct {
-	PostSlug string `json:"post_slug" binding:"required"`
+	PostSlug string `json:"post_slug,omitempty"` // Made optional
+	BlogID   string `json:"blog_id,omitempty"`   // New field for blog-based queries
+	BlogSlug string `json:"blog_slug,omitempty"` // New field for blog slug-based queries
 	Limit    int32  `json:"limit"`
 	Offset   int32  `json:"offset"`
 	UserID   string `json:"user_id,omitempty"` // For checking if user has thumbed
@@ -62,11 +66,31 @@ func (m *MessageService) CreateMessage(ctx context.Context, req CreateMessageReq
 		return nil, fmt.Errorf("invalid user ID: %w", err)
 	}
 
-	message, err := queries.CreateMessage(ctx, db.CreateMessageParams{
-		UserID:   userUUID,
-		PostSlug: req.PostSlug,
-		Message:  req.Message,
-	})
+	var message db.Message
+	var err error
+
+	// Use the new CreateMessageWithBlogID if blog_id is provided
+	if req.BlogID != "" {
+		blogUUID := pgtype.UUID{}
+		if err := blogUUID.Scan(req.BlogID); err != nil {
+			return nil, fmt.Errorf("invalid blog ID: %w", err)
+		}
+
+		message, err = queries.CreateMessageWithBlogID(ctx, db.CreateMessageWithBlogIDParams{
+			UserID:   userUUID,
+			BlogID:   blogUUID,
+			PostSlug: req.PostSlug,
+			Message:  req.Message,
+		})
+	} else {
+		// Fallback to the old method for backward compatibility
+		message, err = queries.CreateMessage(ctx, db.CreateMessageParams{
+			UserID:   userUUID,
+			PostSlug: req.PostSlug,
+			Message:  req.Message,
+		})
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
@@ -77,12 +101,18 @@ func (m *MessageService) CreateMessage(ctx context.Context, req CreateMessageReq
 		return nil, fmt.Errorf("failed to get created message: %w", err)
 	}
 
+	blogID := ""
+	if message.BlogID.Valid {
+		blogID = uuid.UUID(message.BlogID.Bytes).String()
+	}
+
 	return &MessageInfo{
 		ID:          uuid.UUID(message.ID.Bytes).String(),
 		UserID:      uuid.UUID(message.UserID.Bytes).String(),
 		UserName:    messageWithUser.UserName,
 		UserPicture: messageWithUser.UserPictureUrl.String,
 		PostSlug:    message.PostSlug,
+		BlogID:      blogID,
 		Message:     message.Message,
 		ThumbCount:  message.ThumbCount.Int32,
 		CreatedAt:   message.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
@@ -90,7 +120,19 @@ func (m *MessageService) CreateMessage(ctx context.Context, req CreateMessageReq
 	}, nil
 }
 
-// GetMessagesByPostSlug retrieves messages for a specific blog post
+// GetMessages retrieves messages based on different criteria (post_slug, blog_id, or blog_slug)
+func (m *MessageService) GetMessages(ctx context.Context, req ListMessagesRequest) ([]MessageInfo, error) {
+	if req.PostSlug != "" {
+		return m.GetMessagesByPostSlug(ctx, req)
+	} else if req.BlogID != "" {
+		return m.GetMessagesByBlogID(ctx, req)
+	} else if req.BlogSlug != "" {
+		return m.GetMessagesByBlogSlug(ctx, req)
+	}
+	return nil, fmt.Errorf("at least one of post_slug, blog_id, or blog_slug must be provided")
+}
+
+// GetMessagesByPostSlug retrieves messages for a specific blog post (legacy method)
 func (m *MessageService) GetMessagesByPostSlug(ctx context.Context, req ListMessagesRequest) ([]MessageInfo, error) {
 	queries := m.dbService.GetQueries()
 
@@ -120,6 +162,133 @@ func (m *MessageService) GetMessagesByPostSlug(ctx context.Context, req ListMess
 			PostSlug:    msg.PostSlug,
 			Message:     msg.Message,
 			ThumbCount:  msg.ThumbCount.Int32,
+			CreatedAt:   msg.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt:   msg.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		}
+
+		// Check if the requesting user has thumbed this message
+		if req.UserID != "" {
+			userUUID := pgtype.UUID{}
+			if err := userUUID.Scan(req.UserID); err == nil {
+				messageUUID := pgtype.UUID{}
+				if err := messageUUID.Scan(uuid.UUID(msg.ID.Bytes).String()); err == nil {
+					thumbed, err := queries.CheckUserThumbedMessage(ctx, db.CheckUserThumbedMessageParams{
+						MessageID: messageUUID,
+						UserID:    userUUID,
+					})
+					if err == nil {
+						result[i].UserThumbed = thumbed
+					}
+				}
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// GetMessagesByBlogID retrieves messages for a specific blog by blog ID
+func (m *MessageService) GetMessagesByBlogID(ctx context.Context, req ListMessagesRequest) ([]MessageInfo, error) {
+	queries := m.dbService.GetQueries()
+
+	if req.Limit <= 0 {
+		req.Limit = 20 // Default limit
+	}
+	if req.Offset < 0 {
+		req.Offset = 0
+	}
+
+	blogUUID := pgtype.UUID{}
+	if err := blogUUID.Scan(req.BlogID); err != nil {
+		return nil, fmt.Errorf("invalid blog ID: %w", err)
+	}
+
+	messages, err := queries.GetMessagesByBlogID(ctx, db.GetMessagesByBlogIDParams{
+		BlogID: blogUUID,
+		Limit:  req.Limit,
+		Offset: req.Offset,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get messages: %w", err)
+	}
+
+	result := make([]MessageInfo, len(messages))
+	for i, msg := range messages {
+		blogID := ""
+		if msg.BlogID.Valid {
+			blogID = uuid.UUID(msg.BlogID.Bytes).String()
+		}
+
+		result[i] = MessageInfo{
+			ID:          uuid.UUID(msg.ID.Bytes).String(),
+			UserID:      uuid.UUID(msg.UserID.Bytes).String(),
+			UserName:    msg.UserName,
+			UserPicture: msg.UserPictureUrl.String,
+			PostSlug:    msg.PostSlug,
+			BlogID:      blogID,
+			Message:     msg.Message,
+			ThumbCount:  int32(msg.ThumbCount_2), // Use the calculated thumb count from the query
+			CreatedAt:   msg.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt:   msg.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		}
+
+		// Check if the requesting user has thumbed this message
+		if req.UserID != "" {
+			userUUID := pgtype.UUID{}
+			if err := userUUID.Scan(req.UserID); err == nil {
+				messageUUID := pgtype.UUID{}
+				if err := messageUUID.Scan(uuid.UUID(msg.ID.Bytes).String()); err == nil {
+					thumbed, err := queries.CheckUserThumbedMessage(ctx, db.CheckUserThumbedMessageParams{
+						MessageID: messageUUID,
+						UserID:    userUUID,
+					})
+					if err == nil {
+						result[i].UserThumbed = thumbed
+					}
+				}
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// GetMessagesByBlogSlug retrieves messages for a specific blog by blog slug
+func (m *MessageService) GetMessagesByBlogSlug(ctx context.Context, req ListMessagesRequest) ([]MessageInfo, error) {
+	queries := m.dbService.GetQueries()
+
+	if req.Limit <= 0 {
+		req.Limit = 20 // Default limit
+	}
+	if req.Offset < 0 {
+		req.Offset = 0
+	}
+
+	messages, err := queries.GetMessagesByBlogSlug(ctx, db.GetMessagesByBlogSlugParams{
+		Slug:   req.BlogSlug,
+		Limit:  req.Limit,
+		Offset: req.Offset,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get messages: %w", err)
+	}
+
+	result := make([]MessageInfo, len(messages))
+	for i, msg := range messages {
+		blogID := ""
+		if msg.BlogID.Valid {
+			blogID = uuid.UUID(msg.BlogID.Bytes).String()
+		}
+
+		result[i] = MessageInfo{
+			ID:          uuid.UUID(msg.ID.Bytes).String(),
+			UserID:      uuid.UUID(msg.UserID.Bytes).String(),
+			UserName:    msg.UserName,
+			UserPicture: msg.UserPictureUrl.String,
+			PostSlug:    msg.PostSlug,
+			BlogID:      blogID,
+			Message:     msg.Message,
+			ThumbCount:  int32(msg.ThumbCount_2), // Use the calculated thumb count from the query
 			CreatedAt:   msg.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 			UpdatedAt:   msg.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		}

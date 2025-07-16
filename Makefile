@@ -99,7 +99,7 @@ wait-for-db:
 
 # Generate sqlc code
 sqlc:
-	sqlc generate
+	sqlc generate 
 
 # Test the application
 test:
