@@ -17,15 +17,15 @@ type Claims struct {
 }
 
 func main() {
-	// 使用與後端相同的 JWT_SECRET
+	// Use the same JWT_SECRET as the backend
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "your-secret-key-change-in-production" // 默認值與服務器一致
+		jwtSecret = "your-secret-key-change-in-production" // default secret
 	}
 
-	// 創建測試用戶的 claims
+	// Create claims for the testing user
 	claims := Claims{
-		UserID:   "550e8400-e29b-41d4-a716-446655440000", // 測試用的 UUID
+		UserID:   "550e8400-e29b-41d4-a716-446655440000", // testing user UUID
 		Email:    "test@example.com",
 		Name:     "Test User",
 		GoogleID: "test-google-id-12345",
@@ -38,27 +38,27 @@ func main() {
 		},
 	}
 
-	// 生成 token
+	// Generate token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("=== JWT Token 測試工具 ===")
+	fmt.Println("=== JWT Token Testing Tool ===")
 	fmt.Println("")
 	fmt.Println("Generated JWT Token:")
 	fmt.Println(tokenString)
 	fmt.Println("")
-	fmt.Println("📋 複製上面的 token 到 Postman：")
-	fmt.Println("1. 在 Authorization tab 選擇 'Bearer Token'")
-	fmt.Println("2. 貼上這個 token")
-	fmt.Println("3. 測試 GET /auth/me")
+	fmt.Println("📋 Copy the token above to Postman:")
+	fmt.Println("1. Select 'Bearer Token' in the Authorization tab")
+	fmt.Println("2. Paste the token")
+	fmt.Println("3. Test GET /auth/me")
 	fmt.Println("")
-	fmt.Println("🔍 Token 內容：")
+	fmt.Println("🔍 Token content:")
 	fmt.Printf("  User ID: %s\n", claims.UserID)
 	fmt.Printf("  Email: %s\n", claims.Email)
 	fmt.Printf("  Name: %s\n", claims.Name)
 	fmt.Printf("  Google ID: %s\n", claims.GoogleID)
-	fmt.Printf("  過期時間: %s\n", claims.ExpiresAt.Time.Format("2006-01-02 15:04:05"))
+	fmt.Printf("  Expiration time: %s\n", claims.ExpiresAt.Time.Format("2006-01-02 15:04:05"))
 }

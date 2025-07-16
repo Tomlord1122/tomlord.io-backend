@@ -1,0 +1,33 @@
+---
+globs: *.go,go.mod,go.sum
+---
+
+# Go Backend Development Standards
+
+## Code Structure
+- Follow Go project layout standards with `cmd/`, `internal/`, and `pkg/` directories
+- Main application entry point is [cmd/api/main.go](mdc:tomlord.io-backend/cmd/api/main.go)
+- All internal packages should be in [internal/](mdc:tomlord.io-backend/internal/) directory
+- Use dependency injection pattern as shown in [internal/server/server.go](mdc:tomlord.io-backend/internal/server/server.go)
+
+## Database
+- Use SQLC for type-safe database queries (queries in [sqlc/queries/](mdc:tomlord.io-backend/sqlc/queries/))
+- Database migrations are in [migrations/](mdc:tomlord.io-backend/migrations/) directory
+- Database connection and service layer in [internal/database/](mdc:tomlord.io-backend/internal/database/)
+- Generated SQLC code is in [internal/db/](mdc:tomlord.io-backend/internal/db/)
+
+## API Development
+- Use Gin framework for HTTP routing
+- CORS configuration is set up for local development (localhost:5173, localhost:3000)
+- Authentication via OAuth and JWT middleware in [internal/middleware/auth.go](mdc:tomlord.io-backend/internal/middleware/auth.go)
+- Graceful shutdown pattern implemented in server
+
+## Testing
+- Use Testcontainers for integration tests with PostgreSQL
+- Unit tests should follow Go conventions with `_test.go` suffix
+- Run tests with `make test` command
+
+## Build & Deploy
+- Use Docker for containerization with multi-stage builds
+- Environment variables are loaded via godotenv
+- Use provided Makefile commands: `make build`, `make run`, `make docker-run`

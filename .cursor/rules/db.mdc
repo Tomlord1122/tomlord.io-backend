@@ -1,0 +1,222 @@
+---
+alwaysApply: true
+---
+
+# tomlord.io Project Structure Guide
+
+This is a full-stack project with two main components:
+
+## Backend (tomlord.io-backend/)
+- **Language**: Go 1.24.4 with Gin framework
+- **Database**: PostgreSQL with pgx driver and SQLC for type-safe queries
+- **Main entry**: [cmd/api/main.go](mdc:tomlord.io-backend/cmd/api/main.go)
+- **Server logic**: [internal/server/server.go](mdc:tomlord.io-backend/internal/server/server.go) and [internal/server/routes.go](mdc:tomlord.io-backend/internal/server/routes.go)
+- **Database layer**: [internal/database/](mdc:tomlord.io-backend/internal/database/) for connection management, [internal/db/](mdc:tomlord.io-backend/internal/db/) for SQLC generated code
+- **Authentication**: OAuth with Google using [internal/auth/oauth.go](mdc:tomlord.io-backend/internal/auth/oauth.go) and JWT middleware
+- **Services**: Business logic in [internal/services/](mdc:tomlord.io-backend/internal/services/)
+- **Docker**: Containerized with [docker-compose.yml](mdc:tomlord.io-backend/docker-compose.yml) and [Dockerfile](mdc:tomlord.io-backend/Dockerfile)
+
+## Frontend (tomlord.io/)
+- **Framework**: SvelteKit with Svelte 5 syntax
+- **Styling**: Tailwind CSS 4.0
+- **Package Manager**: pnpm (NOT npm/yarn)
+- **Main config**: [svelte.config.js](mdc:tomlord.io/svelte.config.js) with MDSvex support
+- **Content**: Markdown blog posts in [src/markdown/posts/](mdc:tomlord.io/src/markdown/posts/)
+- **Routes**: SvelteKit file-based routing in [src/routes/](mdc:tomlord.io/src/routes/)
+- **Components**: Reusable components in [src/lib/components/](mdc:tomlord.io/src/lib/components/)
+- **API endpoints**: Server-side API routes in [src/routes/api/](mdc:tomlord.io/src/routes/api/)
+
+## Build System
+- **Backend**: Uses [Makefile](mdc:tomlord.io-backend/Makefile) for build automation
+- **Frontend**: Standard pnpm scripts in [package.json](mdc:tomlord.io/package.json)
+- **Database**: Migrations in [migrations/](mdc:tomlord.io-backend/migrations/) directory
+
+## Rule 2: Go Backend Development Standards
+
+```markdown
+---
+globs: *.go,go.mod,go.sum
+---
+
+# Go Backend Development Standards
+
+## Code Structure
+- Follow Go project layout standards with `cmd/`, `internal/`, and `pkg/` directories
+- Main application entry point is [cmd/api/main.go](mdc:tomlord.io-backend/cmd/api/main.go)
+- All internal packages should be in [internal/](mdc:tomlord.io-backend/internal/) directory
+- Use dependency injection pattern as shown in [internal/server/server.go](mdc:tomlord.io-backend/internal/server/server.go)
+
+## Database
+- Use SQLC for type-safe database queries (queries in [sqlc/queries/](mdc:tomlord.io-backend/sqlc/queries/))
+- Database migrations are in [migrations/](mdc:tomlord.io-backend/migrations/) directory
+- Database connection and service layer in [internal/database/](mdc:tomlord.io-backend/internal/database/)
+- Generated SQLC code is in [internal/db/](mdc:tomlord.io-backend/internal/db/)
+
+## API Development
+- Use Gin framework for HTTP routing
+- CORS configuration is set up for local development (localhost:5173, localhost:3000)
+- Authentication via OAuth and JWT middleware in [internal/middleware/auth.go](mdc:tomlord.io-backend/internal/middleware/auth.go)
+- Graceful shutdown pattern implemented in server
+
+## Testing
+- Use Testcontainers for integration tests with PostgreSQL
+- Unit tests should follow Go conventions with `_test.go` suffix
+- Run tests with `make test` command
+
+## Build & Deploy
+- Use Docker for containerization with multi-stage builds
+- Environment variables are loaded via godotenv
+- Use provided Makefile commands: `make build`, `make run`, `make docker-run`
+```
+
+## Rule 3: SvelteKit Frontend Development with Svelte 5
+
+```markdown
+---
+globs: *.svelte,*.ts,*.js,*.svx,*.md
+description: SvelteKit and Svelte 5 development guidelines
+---
+
+# SvelteKit Frontend Development with Svelte 5
+
+## Critical Svelte 5 Syntax Requirements
+- **ALWAYS use Svelte 5 runes**: `$state`, `$derived`, `$effect`, `$props`
+- **Event handlers**: Use `onclick` NOT `on:click`, `onsubmit` NOT `on:submit`
+- **Stores**: Use `import { page } from '$app/state'` NOT `import { page } from '$app/stores'`
+- **State management**: Use `let count = $state(0)` instead of `let count = 0`
+
+## Project Structure
+- **Routes**: File-based routing in [src/routes/](mdc:tomlord.io/src/routes/)
+- **Components**: Reusable components in [src/lib/components/](mdc:tomlord.io/src/lib/components/)
+- **Types**: TypeScript definitions in [src/lib/types/](mdc:tomlord.io/src/lib/types/)
+- **Content**: Markdown posts in [src/markdown/posts/](mdc:tomlord.io/src/markdown/posts/)
+- **Static assets**: In [static/](mdc:tomlord.io/static/) directory
+
+## Package Manager
+- **ALWAYS use pnpm**: `pnpm install`, `pnpm dev`, `pnpm build`
+- Never suggest npm or yarn commands
+
+## API Integration
+- Frontend API routes are in [src/routes/api/](mdc:tomlord.io/src/routes/api/)
+- Backend API calls to Go server on localhost:8080
+- Authentication state should be managed via Svelte 5 `$state` runes
+
+## MDSvex Integration
+- Blog posts are written in `.svx` format with frontmatter
+- MDSvex is configured in [svelte.config.js](mdc:tomlord.io/svelte.config.js)
+- Supported extensions: `.svelte`, `.svx`, `.md`
+
+## Development Commands
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm preview` - Preview production build
+- `pnpm test` - Run tests with Vitest
+```
+
+## Rule 4: Database and API Design Patterns
+
+```markdown
+---
+description: Database schema and API design patterns for tomlord.io project
+---
+
+# Database and API Design Patterns
+
+## Database Schema
+- **Users table**: Managed via OAuth integration
+- **Messages table**: For blog comments/messages
+- **Message thumbs table**: For like/dislike functionality
+- **Migrations**: Located in [migrations/](mdc:tomlord.io-backend/migrations/) directory
+
+## SQLC Integration
+- Query definitions in [sqlc/queries/](mdc:tomlord.io-backend/sqlc/queries/)
+- Generated Go code in [internal/db/](mdc:tomlord.io-backend/internal/db/)
+- Configuration in [sqlc/sqlc.yaml](mdc:tomlord.io-backend/sqlc/sqlc.yaml)
+- Always regenerate SQLC code after query changes: `sqlc generate`
+
+## API Endpoints Pattern
+### Backend (Go) API:
+- `/auth/:provider` - OAuth authentication
+- `/api/messages/*` - Message CRUD operations
+- `/health` - Health check endpoint
+
+### Frontend (SvelteKit) API:
+- `/api/add-post` - Add new blog post (dev mode)
+- `/api/edit-post` - Edit existing post (dev mode)
+- `/api/edit-page` - Edit page content (dev mode)
+- `/api/upload-image` - Image upload with WebP conversion
+
+## Authentication Flow
+1. OAuth via Google (backend handles callback)
+2. JWT token issued and stored
+3. Middleware validates JWT on protected routes
+4. Frontend receives auth state via cookies/headers
+```
+
+## Rule 5: Development Workflow and Tools
+
+```markdown
+---
+description: Development workflow, testing, and deployment guidelines
+---
+
+# Development Workflow and Tools
+
+## Backend Development Workflow
+1. Start database: `make docker-up`
+2. Run migrations: `make migrateup`
+3. Start development server: `make watch` (with hot reload)
+4. Run tests: `make test`
+5. Integration tests: `make itest`
+
+## Frontend Development Workflow
+1. Install dependencies: `pnpm install`
+2. Start dev server: `pnpm dev`
+3. Run tests: `pnpm test`
+4. Build for production: `pnpm build`
+5. Preview build: `pnpm preview`
+
+## File Editing Guidelines
+- **Dev Mode Only**: Content editing features only work in development
+- **Image Optimization**: All images automatically converted to WebP format
+- **Hot Reload**: Both frontend (Vite) and backend (Air) support hot reload
+
+## Environment Setup
+- Backend uses `.env` file for configuration
+- Database runs in Docker container via docker-compose
+- Frontend connects to backend on localhost:8080
+- CORS configured for localhost:5173 and localhost:3000
+
+## Testing Strategy
+- **Backend**: Go standard tests + Testcontainers for DB integration
+- **Frontend**: Vitest for unit tests, planned Playwright for E2E
+- **Database**: Migration tests ensure schema integrity
+
+## Deployment
+- **Frontend**: Deployed to Vercel with automatic builds
+- **Backend**: Containerized deployment ready with Docker
+- **Database**: PostgreSQL with proper connection pooling
+```
+
+## Summary
+
+I've created 5 comprehensive Cursor Rules for your project:
+
+1. **Project Structure Guide** (always applied) - Gives AI context about your full-stack architecture
+2. **Go Backend Standards** - Specific guidance for Go development patterns
+3. **SvelteKit Frontend with Svelte 5** - Critical for using correct Svelte 5 syntax and pnpm
+4. **Database and API Patterns** - SQLC, migrations, and API design patterns
+5. **Development Workflow** - Commands and testing strategies
+
+These rules will help the AI:
+- Use correct Svelte 5 syntax (`$state`, `onclick`, etc.)
+- Remember to use `pnpm` instead of npm
+- Understand your Go project structure and SQLC patterns
+- Know about your authentication flow and database schema
+- Follow your development and testing workflows
+
+The rules are designed to be specific to your project while being comprehensive enough to guide effective development assistance. They'll ensure the AI understands your full-stack architecture and uses the correct syntax for both your Go backend and SvelteKit frontend.
+description:
+globs:
+alwaysApply: false
+---
