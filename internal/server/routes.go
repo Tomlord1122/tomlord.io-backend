@@ -55,6 +55,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 			blogs.DELETE("/:slug", s.authMiddleware.RequireAuth(), s.deleteBlogHandler)
 		}
 
+		// Temporary sync endpoint for initial blog migration (remove after sync)
+		api.POST("/sync-blogs", s.syncBlogsHandler)
+
 		// Message routes (comments)
 		messages := api.Group("/messages")
 		{
@@ -151,9 +154,9 @@ func (s *Server) authCallbackHandler(c *gin.Context) {
 	// Set cookie
 	s.authMiddleware.SetAuthCookie(c, token)
 
-	// Redirect to frontend or return JSON
+	// Redirect to frontend auth callback with token
 	frontendURL := "http://localhost:5173" // Change this to your frontend URL
-	c.Redirect(http.StatusTemporaryRedirect, frontendURL+"?auth=success")
+	c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/auth/callback?token="+token)
 }
 
 func (s *Server) logoutHandler(c *gin.Context) {
@@ -380,6 +383,67 @@ func (s *Server) deleteBlogHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Blog deleted successfully"})
+}
+
+// Temporary sync handler for blog migration
+func (s *Server) syncBlogsHandler(c *gin.Context) {
+	var blogs []services.CreateBlogRequest
+	if err := c.ShouldBindJSON(&blogs); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	results := []interface{}{}
+	errors := []string{}
+
+	for _, blogReq := range blogs {
+		// Check if blog already exists
+		existingBlog, err := s.blogService.GetBlogBySlug(c.Request.Context(), blogReq.Slug)
+
+		if err == nil && existingBlog != nil {
+			// Blog exists, update it
+			updateReq := services.UpdateBlogRequest{
+				Title:       blogReq.Title,
+				Date:        blogReq.Date,
+				Lang:        blogReq.Lang,
+				Duration:    blogReq.Duration,
+				Tags:        blogReq.Tags,
+				Description: blogReq.Description,
+				IsPublished: blogReq.IsPublished,
+			}
+
+			blog, err := s.blogService.UpdateBlogBySlug(c.Request.Context(), blogReq.Slug, updateReq)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Failed to update %s: %v", blogReq.Slug, err))
+			} else {
+				results = append(results, map[string]interface{}{
+					"action": "updated",
+					"blog":   blog,
+				})
+			}
+		} else {
+			// Blog doesn't exist, create it
+			blog, err := s.blogService.CreateBlog(c.Request.Context(), blogReq)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Failed to create %s: %v", blogReq.Slug, err))
+			} else {
+				results = append(results, map[string]interface{}{
+					"action": "created",
+					"blog":   blog,
+				})
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"results": results,
+		"errors":  errors,
+		"summary": gin.H{
+			"total":   len(blogs),
+			"success": len(results),
+			"failed":  len(errors),
+		},
+	})
 }
 
 func (s *Server) getMessagesByBlogSlugHandler(c *gin.Context) {
