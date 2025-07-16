@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -72,31 +73,8 @@ func (s *Server) authHandler(c *gin.Context) {
 	provider := c.Param("provider")
 	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
 
-	if gothUser, err := gothic.CompleteUserAuth(c.Writer, c.Request); err == nil {
-		// User already authenticated, redirect or return user info
-		userInfo, err := s.authService.CreateOrUpdateUser(c.Request.Context(), gothUser)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process user"})
-			return
-		}
-
-		// Generate JWT token
-		token, err := s.authMiddleware.GenerateJWT(userInfo)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-			return
-		}
-
-		// Set cookie and return user info
-		s.authMiddleware.SetAuthCookie(c, token)
-		c.JSON(http.StatusOK, gin.H{
-			"user":  userInfo,
-			"token": token,
-		})
-	} else {
-		// Start OAuth flow
-		gothic.BeginAuthHandler(c.Writer, c.Request)
-	}
+	// Always start OAuth flow for new authentication
+	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
 func (s *Server) authCallbackHandler(c *gin.Context) {
@@ -112,7 +90,9 @@ func (s *Server) authCallbackHandler(c *gin.Context) {
 	// Create or update user in database
 	userInfo, err := s.authService.CreateOrUpdateUser(c.Request.Context(), gothUser)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process user"})
+		// Log the detailed error for debugging
+		fmt.Printf("Error creating/updating user: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process user", "details": err.Error()})
 		return
 	}
 

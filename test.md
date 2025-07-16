@@ -449,15 +449,61 @@ make wait-for-db
 - 檢查 token 是否過期
 - 確保 Authorization header 格式正確：`Bearer <token>`
 
-### 3. OAuth 重定向錯誤
+### 3. OAuth 會話錯誤：`{"error":"could not find a matching session for this request"}`
+
+**✅ 已修復！** 這個問題是因為缺少會話管理配置。
+
+**原因：**
+- Goth OAuth 庫需要會話存儲來維護 OAuth 狀態
+- 缺少會話配置導致會話狀態丟失
+
+**解決方案（已實施）：**
+
+1. **添加了會話管理**
+   - 使用 `gorilla/sessions` 庫
+   - 配置了會話存儲和 cookie 設置
+
+2. **新增環境變數**
+   ```env
+   SESSION_SECRET=your-session-secret-change-in-production
+   ```
+
+3. **改進了 OAuth 流程**
+   - 簡化了認證邏輯
+   - 確保會話正確維護
+
+**測試修復：**
+```
+http://localhost:8080/auth/google
+```
+
+現在應該能正常重定向到 Google 登錄，不再出現會話錯誤！
+
+**如果還有會話問題：**
+
+1. **確認環境變數**
+   ```bash
+   grep SESSION_SECRET .env
+   ```
+
+2. **清除瀏覽器 Cookies**
+   - 開發者工具 → Application → Storage → Clear
+   - 重新測試 OAuth
+
+3. **檢查服務日誌**
+   ```bash
+   make docker-logs
+   ```
+
+### 4. OAuth 重定向錯誤
 - 檢查 Google OAuth 設置中的重定向 URI
 - 確保 `.env` 文件中的 `GOOGLE_CALLBACK_URL` 正確
 
-### 4. 權限錯誤（403/401）
+### 5. 權限錯誤（403/401）
 - 確保使用了正確的 JWT token
 - 檢查你是否嘗試編輯/刪除別人的消息（只能操作自己的）
 
-### 5. 查看詳細錯誤日誌
+### 6. 查看詳細錯誤日誌
 ```bash
 # 查看後端服務日誌
 make docker-logs

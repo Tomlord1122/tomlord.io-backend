@@ -7,8 +7,10 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/markbates/goth"
+	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/google"
 	"github.com/spf13/viper"
 	"tomlord.io-backend/internal/database"
@@ -63,6 +65,26 @@ func setupOAuthProviders() {
 		log.Fatal("Google OAuth credentials not found in environment variables")
 	}
 
+	// Setup session store
+	sessionSecret := os.Getenv("SESSION_SECRET")
+	if sessionSecret == "" {
+		sessionSecret = "your-session-secret-change-in-production" // Default secret
+		log.Println("Warning: Using default session secret. Set SESSION_SECRET in production!")
+	}
+
+	// Create session store
+	store := sessions.NewCookieStore([]byte(sessionSecret))
+	store.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 7, // 7 days
+		HttpOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: 2,     // Lax
+	}
+
+	// Configure gothic to use our session store
+	gothic.Store = store
+
 	goth.UseProviders(
 		google.New(googleClientID, googleClientSecret, callbackURL, "email", "profile"),
 	)
@@ -78,11 +100,6 @@ func (a *AuthService) CreateOrUpdateUser(ctx context.Context, gothUser goth.User
 	_, err := queries.GetUserByGoogleID(ctx, gothUser.UserID)
 	if err != nil {
 		// User doesn't exist, create new one
-		userUUID := pgtype.UUID{}
-		if err := userUUID.Scan(uuid.New()); err != nil {
-			return nil, fmt.Errorf("failed to generate UUID: %w", err)
-		}
-
 		pictureURL := pgtype.Text{}
 		if gothUser.AvatarURL != "" {
 			if err := pictureURL.Scan(gothUser.AvatarURL); err != nil {
@@ -109,7 +126,7 @@ func (a *AuthService) CreateOrUpdateUser(ctx context.Context, gothUser goth.User
 		}, nil
 	}
 
-	// User exists, update their information
+	// User exists, update their information and return
 	pictureURL := pgtype.Text{}
 	if gothUser.AvatarURL != "" {
 		if err := pictureURL.Scan(gothUser.AvatarURL); err != nil {
