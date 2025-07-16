@@ -1,5 +1,6 @@
 services:
   app:
+    container_name: app_bp
     build:
       context: .
       dockerfile: Dockerfile
@@ -16,12 +17,17 @@ services:
       BLUEPRINT_DB_USERNAME: ${BLUEPRINT_DB_USERNAME}
       BLUEPRINT_DB_PASSWORD: ${BLUEPRINT_DB_PASSWORD}
       BLUEPRINT_DB_SCHEMA: ${BLUEPRINT_DB_SCHEMA}
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
     depends_on:
       psql_bp:
         condition: service_healthy
     networks:
       - blueprint
   psql_bp:
+    container_name: psql_bp
     image: postgres:17.5-alpine3.22
     restart: unless-stopped
     environment:

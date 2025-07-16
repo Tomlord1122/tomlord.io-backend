@@ -1,5 +1,6 @@
 # Simple Makefile for a Go project
-
+include .env
+export
 # Database URL for migrations (using environment variables)
 DB_URL=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@localhost:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=disable
 
@@ -25,7 +26,7 @@ docker-up:
 
 # Start services and show logs
 docker-run:
-	@if docker compose up --build ; then \
+	@if docker compose up --build 2> /dev/null ; then \
 		: ; \
 	else \
 		echo "Falling back to Docker Compose V1"; \
@@ -34,7 +35,7 @@ docker-run:
 
 # Stop all services
 docker-down:
-	@if docker compose down ; then \
+	@if docker compose down 2> /dev/null ; then \
 		echo "Services stopped with Docker Compose V2"; \
 	else \
 		echo "Falling back to Docker Compose V1"; \
