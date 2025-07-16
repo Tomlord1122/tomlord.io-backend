@@ -27,6 +27,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// Basic routes
 	r.GET("/", s.HelloWorldHandler)
 	r.GET("/health", s.healthHandler)
+	r.GET("/debug/jwt", s.debugJWTHandler)
 
 	// Auth routes
 	auth := r.Group("/auth")
@@ -66,6 +67,35 @@ func (s *Server) HelloWorldHandler(c *gin.Context) {
 
 func (s *Server) healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, s.dbService.Health())
+}
+
+func (s *Server) debugJWTHandler(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+
+	response := gin.H{
+		"auth_header": authHeader,
+	}
+
+	if authHeader != "" {
+		// 嘗試驗證 token
+		tokenString := ""
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			tokenString = authHeader[7:]
+		}
+
+		response["token_extracted"] = tokenString
+
+		if tokenString != "" {
+			claims, err := s.authMiddleware.ValidateJWT(tokenString)
+			if err != nil {
+				response["jwt_error"] = err.Error()
+			} else {
+				response["jwt_claims"] = claims
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // Auth handlers
