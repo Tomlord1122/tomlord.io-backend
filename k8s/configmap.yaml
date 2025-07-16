@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tomlord-io-config
+  namespace: tomlord-io
+data:
+  PORT: "8080"
+  APP_ENV: "production"
+  BLUEPRINT_DB_PORT: "5432"
+  BLUEPRINT_DB_SCHEMA: "public"
+  # Non-sensitive configurations only
+  # Sensitive data should go in secrets 
