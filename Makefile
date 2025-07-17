@@ -133,4 +133,41 @@ watch:
             fi; \
         fi
 
-.PHONY: all build run test clean watch docker-up docker-run docker-down docker-logs createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc setup wait-for-db itest
+# Fly.io deployment commands
+fly-deploy:
+	@echo "Deploying to Fly.io..."
+	@flyctl deploy
+
+fly-status:
+	@echo "Checking Fly.io status..."
+	@flyctl status
+
+fly-logs:
+	@echo "Showing Fly.io logs..."
+	@flyctl logs
+
+fly-dashboard:
+	@echo "Opening Fly.io dashboard..."
+	@flyctl dashboard
+
+fly-secrets-list:
+	@echo "Listing Fly.io secrets..."
+	@flyctl secrets list
+
+fly-postgres-create:
+	@echo "Creating Fly.io PostgreSQL database..."
+	@flyctl postgres create --name tomlord-db --region hkg
+
+fly-postgres-attach:
+	@echo "Attaching PostgreSQL to app..."
+	@flyctl postgres attach --postgres-app tomlord-db --app tomlord-io-backend
+
+fly-postgres-connect:
+	@echo "Connecting to Fly.io PostgreSQL..."
+	@flyctl postgres connect -a tomlord-db
+
+fly-auto-deploy:
+	@echo "Running automated Fly.io deployment..."
+	@./scripts/deploy-fly.sh
+
+.PHONY: all build run test clean watch docker-up docker-run docker-down docker-logs createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc setup wait-for-db itest fly-deploy fly-status fly-logs fly-dashboard fly-secrets-list fly-postgres-create fly-postgres-attach fly-postgres-connect fly-auto-deploy

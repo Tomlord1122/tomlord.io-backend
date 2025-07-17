@@ -66,8 +66,7 @@ var upgrader = websocket.Upgrader{
 			} else {
 				// Default fallback for production
 				allowedOrigins = []string{
-					"https://tomlord.vercel.app",
-					"https://www.tomlord.io",
+					"https://tomlord.fyi",
 				}
 			}
 

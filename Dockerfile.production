@@ -25,24 +25,35 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -a -installsuffix cgo \
     -o main cmd/api/main.go
 
-# Production stage
-# FROM scratch -> Create a new stage from the scratch image (no base image)
-FROM scratch
+# TODO:[PRODUCTION] Install migrate tool for database migrations
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
-# Copy timezone data -> Copy the timezone data from the builder stage to the working directory
+# Production stage - Use alpine instead of scratch to support migrate tool and SSH
+FROM alpine:3.20.1 AS prod
+
+# Install necessary runtime dependencies including shell
+RUN apk add --no-cache ca-certificates tzdata bash
+
+# Create non-root user in alpine
+RUN adduser -D -g '' appuser
+
+# Copy timezone data
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-# Copy CA certificates -> Copy the CA certificates from the builder stage to the working directory
+# Copy CA certificates
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Copy user -> Copy the user from the builder stage to the working directory
-COPY --from=builder /etc/passwd /etc/passwd
-
-# Copy binary -> Copy the binary from the builder stage to the working directory
+# Copy binary
 COPY --from=builder /app/main /main
 
-# Copy migrations (if needed for migration jobs) -> Copy the migrations from the builder stage to the working directory
+# TODO:[PRODUCTION] Copy migrate tool from builder stage
+COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
+
+# Copy migrations for migration jobs
 COPY --from=builder /app/migrations /migrations
+
+# Make migrate executable
+RUN chmod +x /usr/local/bin/migrate
 
 USER appuser
 
