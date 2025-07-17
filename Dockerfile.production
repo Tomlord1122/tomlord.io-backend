@@ -26,24 +26,24 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o main cmd/api/main.go
 
 # Production stage
+# FROM scratch -> Create a new stage from the scratch image (no base image)
 FROM scratch
 
-# Copy timezone data
+# Copy timezone data -> Copy the timezone data from the builder stage to the working directory
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-# Copy CA certificates
+# Copy CA certificates -> Copy the CA certificates from the builder stage to the working directory
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Copy user
+# Copy user -> Copy the user from the builder stage to the working directory
 COPY --from=builder /etc/passwd /etc/passwd
 
-# Copy binary
+# Copy binary -> Copy the binary from the builder stage to the working directory
 COPY --from=builder /app/main /main
 
-# Copy migrations (if needed for migration jobs)
+# Copy migrations (if needed for migration jobs) -> Copy the migrations from the builder stage to the working directory
 COPY --from=builder /app/migrations /migrations
 
-# Use non-root user
 USER appuser
 
 # Expose port

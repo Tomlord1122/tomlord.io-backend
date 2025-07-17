@@ -15,7 +15,8 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		// Allow connections from our frontend
 		origin := r.Header.Get("Origin")
-		return origin == "http://localhost:5173" || origin == "http://localhost:3000"
+		// Remember to add production origin
+		return origin == "http://localhost:5173" || origin == "http://localhost:3000" || origin == "http://minikube.local"
 	},
 	// Add buffer sizes for better performance
 	ReadBufferSize:  1024,

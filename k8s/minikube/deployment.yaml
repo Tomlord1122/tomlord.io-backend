@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tomlord-io-backend
+  namespace: tomlord-io
+  labels:
+    app: tomlord-io-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tomlord-io-backend
+  template:
+    metadata:
+      labels:
+        app: tomlord-io-backend
+    spec:
+      containers:
+      - name: backend
+        image: tomlord-io-backend:latest
+        imagePullPolicy: Never  # 使用本地構建的映像
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        # ConfigMap values
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: tomlord-io-config
+              key: PORT
+        - name: APP_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: tomlord-io-config
+              key: APP_ENV
+        - name: BLUEPRINT_DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: tomlord-io-config
+              key: BLUEPRINT_DB_PORT
+        - name: BLUEPRINT_DB_SCHEMA
+          valueFrom:
+            configMapKeyRef:
+              name: tomlord-io-config
+              key: BLUEPRINT_DB_SCHEMA
+        # Secret values
+        - name: BLUEPRINT_DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: tomlord-io-secrets
+              key: BLUEPRINT_DB_HOST
+        - name: BLUEPRINT_DB_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: tomlord-io-secrets
+              key: BLUEPRINT_DB_DATABASE
+        - name: BLUEPRINT_DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: tomlord-io-secrets
+              key: BLUEPRINT_DB_USERNAME
+        - name: BLUEPRINT_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tomlord-io-secrets
+              key: BLUEPRINT_DB_PASSWORD
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: tomlord-io-secrets
+              key: JWT_SECRET
+        - name: SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: tomlord-io-secrets
+              key: SESSION_SECRET
+        - name: GOOGLE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: tomlord-io-secrets
+              key: GOOGLE_CLIENT_ID
+        - name: GOOGLE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: tomlord-io-secrets
+              key: GOOGLE_CLIENT_SECRET
+        - name: GOOGLE_CALLBACK_URL
+          valueFrom:
+            secretKeyRef:
+              name: tomlord-io-secrets
+              key: GOOGLE_CALLBACK_URL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

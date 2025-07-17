@@ -1,6 +1,6 @@
 services:
   app:
-    container_name: app_bp
+    container_name: app_tomlord.io
     build:
       context: .
       dockerfile: Dockerfile
@@ -23,12 +23,12 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
     depends_on:
-      psql_bp:
+      psql_tomlord.io:
         condition: service_healthy
     networks:
-      - blueprint
-  psql_bp:
-    container_name: psql_bp
+      - tomlord
+  psql_tomlord.io:
+    container_name: psql_tomlord.io
     image: postgres:17.5-alpine3.22
     restart: unless-stopped
     environment:
@@ -38,7 +38,7 @@ services:
     ports:
       - "${BLUEPRINT_DB_PORT}:5432"
     volumes:
-      - psql_volume_bp:/var/lib/postgresql/data
+      - psql_volume_tomlord:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "sh -c 'pg_isready -U ${BLUEPRINT_DB_USERNAME} -d ${BLUEPRINT_DB_DATABASE}'"]
       interval: 5s
@@ -46,9 +46,9 @@ services:
       retries: 3
       start_period: 15s
     networks:
-      - blueprint
+      - tomlord
 
 volumes:
-  psql_volume_bp:
+  psql_volume_tomlord:
 networks:
-  blueprint:
+  tomlord:
