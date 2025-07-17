@@ -1,8 +1,16 @@
 # Simple Makefile for a Go project
-include .env
+include .env.production
 export
+
 # Database URL for migrations (using environment variables)
-DB_URL=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@localhost:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=disable
+# For local development (Docker)
+DB_URL_LOCAL=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@localhost:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=disable
+
+# For production (Neon)
+DB_URL_PROD=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@${BLUEPRINT_DB_HOST}:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=require
+
+# Use production URL if APP_ENV is production, otherwise use local
+DB_URL=$(if $(filter production,$(APP_ENV)),$(DB_URL_PROD),$(DB_URL_LOCAL))
 
 # Build the application
 all: build test
