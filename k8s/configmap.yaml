@@ -8,5 +8,9 @@ data:
   APP_ENV: "production"
   BLUEPRINT_DB_PORT: "5432"
   BLUEPRINT_DB_SCHEMA: "public"
+  # TODO:[PRODUCTION] Update these with your actual production domains
+  ALLOWED_ORIGINS: "https://tomlord.vercel.app,https://www.tomlord.io"
+  FRONTEND_URL: "https://tomlord.vercel.app"
+  # TODO:[PRODUCTION] Add any additional production-specific configurations
   # Non-sensitive configurations only
   # Sensitive data should go in secrets 

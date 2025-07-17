@@ -1,191 +1,132 @@
-# 後端部署檢查清單 (AWS + Kubernetes)
+# Production Deployment Checklist
 
-## 🏗️ AWS 基礎設施準備
+## 🔧 Environment Configuration
 
-### 1. AWS 服務設置
-- [ ] **EKS Cluster**: 創建 Kubernetes 集群
-- [ ] **RDS PostgreSQL**: 設置託管數據庫
-- [ ] **ECR**: 創建容器映像倉庫
-- [ ] **VPC**: 配置網絡和安全組
-- [ ] **IAM**: 設置適當的權限和角色
-- [ ] **ALB/NLB**: 配置負載均衡器
-- [ ] **Route 53**: DNS 配置 (可選)
-- [ ] **Certificate Manager**: SSL 證書 (可選)
+### [ ] Environment Variables
+- [ ] `APP_ENV=production`
+- [ ] `FRONTEND_URL` - Set to your production frontend URL
+- [ ] `ALLOWED_ORIGINS` - Set to your production domains (comma-separated)
+- [ ] `JWT_SECRET` - Use a strong, unique secret
+- [ ] `SESSION_SECRET` - Use a strong, unique secret
+- [ ] `GOOGLE_CLIENT_ID` - Production Google OAuth client ID
+- [ ] `GOOGLE_CLIENT_SECRET` - Production Google OAuth client secret
+- [ ] `GOOGLE_CALLBACK_URL` - Production callback URL
 
-### 2. 數據庫設置 (RDS PostgreSQL)
-```sql
--- 創建數據庫和用戶
-CREATE DATABASE tomlord_production;
-CREATE USER tomlord_user WITH PASSWORD 'your-secure-password';
-GRANT ALL PRIVILEGES ON DATABASE tomlord_production TO tomlord_user;
-```
+### [ ] Domain Configuration
+- [ ] ✅ **COMPLETED** - All hardcoded production values have been replaced with environment variables
+- [ ] Set `FRONTEND_URL` environment variable to your production frontend URL
+- [ ] Set `ALLOWED_ORIGINS` environment variable to your production domains
+- [ ] Update `k8s/configmap.yaml` with production values
 
-### 3. ECR 倉庫創建
-```bash
-# 創建 ECR 倉庫
-aws ecr create-repository --repository-name tomlord-io-backend --region us-west-2
+### [ ] Google OAuth Setup
+- [ ] Create production OAuth client in Google Console
+- [ ] Add production callback URL: `https://your-domain.com/auth/google/callback`
+- [ ] Update authorized origins in Google Console
+- [ ] Update authorized redirect URIs in Google Console
 
-# 獲取登入令牌
-aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-west-2.amazonaws.com
-```
+## 🚀 Deployment Configuration
 
-## 🔧 Kubernetes 配置
+### [ ] Docker Configuration
+- [ ] Review `Dockerfile.production` - Update port if needed
+- [ ] ✅ **COMPLETED** - `docker-compose.yml` updated with environment variables
+- [ ] Test production build locally
 
-### 1. 環境變數和機密
-- [ ] 更新 `k8s/secret.yaml` 中的 base64 編碼值:
-```bash
-# 生成 base64 編碼
-echo -n "your-db-host.rds.amazonaws.com" | base64
-echo -n "production_database" | base64
-echo -n "secure-jwt-secret-256-bits" | base64
-echo -n "secure-session-secret" | base64
-echo -n "your-google-client-id" | base64
-echo -n "your-google-client-secret" | base64
-echo -n "https://your-backend-domain.com/auth/google/callback" | base64
-```
+### [ ] Kubernetes Configuration
+- [ ] Update `k8s/configmap.yaml` with production values
+- [ ] Update `k8s/secret.yaml` with production secrets
+- [ ] Review resource limits and requests
+- [ ] Configure production ingress/load balancer
+- [ ] Set up SSL/TLS certificates
 
-### 2. 網絡配置
-- [ ] 確保 EKS 節點可以訪問 RDS
-- [ ] 配置安全組規則
-- [ ] 設置適當的子網
+### [ ] Database Configuration
+- [ ] Production PostgreSQL instance
+- [ ] Database migrations
+- [ ] Connection pooling settings
+- [ ] Backup strategy
 
-### 3. 存儲配置
-- [ ] 為持久化數據配置 EBS 卷 (如果需要)
-- [ ] 配置備份策略
+## 🔒 Security Configuration
 
-## 🚀 部署流程
+### [ ] Secrets Management
+- [ ] Store sensitive data in Kubernetes secrets
+- [ ] Use strong, unique secrets for JWT and sessions
+- [ ] Rotate secrets regularly
+- [ ] Never commit secrets to version control
 
-### 1. 構建和推送映像
-```bash
-# 構建生產映像
-docker build -f Dockerfile.production -t tomlord-io-backend:latest .
+### [ ] Network Security
+- [ ] Configure firewall rules
+- [ ] Set up SSL/TLS termination
+- [ ] Enable HTTPS only
+- [ ] Configure CORS properly
 
-# 標記並推送到 ECR
-docker tag tomlord-io-backend:latest <account-id>.dkr.ecr.us-west-2.amazonaws.com/tomlord-io-backend:latest
-docker push <account-id>.dkr.ecr.us-west-2.amazonaws.com/tomlord-io-backend:latest
-```
+### [ ] Application Security
+- [ ] Enable rate limiting
+- [ ] Configure proper logging
+- [ ] Set up monitoring and alerting
+- [ ] Regular security updates
 
-### 2. 部署到 Kubernetes
-```bash
-# 使用部署腳本
-chmod +x scripts/deploy.sh
-./scripts/deploy.sh
+## 📊 Monitoring & Logging
 
-# 或手動部署
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/secret.yaml
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-```
+### [ ] Application Monitoring
+- [ ] Set up health checks
+- [ ] Configure metrics collection
+- [ ] Set up alerting
+- [ ] Monitor WebSocket connections
 
-### 3. 數據庫遷移
-```bash
-# 運行遷移 Job
-kubectl apply -f k8s/migration-job.yaml
+### [ ] Logging
+- [ ] Configure structured logging
+- [ ] Set up log aggregation
+- [ ] Configure log retention
+- [ ] Monitor error rates
 
-# 檢查遷移狀態
-kubectl logs job/tomlord-io-db-migration -n tomlord-io
-```
+## 🧪 Testing
 
-## ✅ 部署後驗證
+### [ ] Pre-deployment Testing
+- [ ] Test WebSocket connections
+- [ ] Test OAuth flow
+- [ ] Test database connections
+- [ ] Load testing
+- [ ] Security testing
 
-### 1. 服務健康檢查
-- [ ] Pod 狀態: `kubectl get pods -n tomlord-io`
-- [ ] 服務狀態: `kubectl get services -n tomlord-io`
-- [ ] 健康端點: `curl https://your-backend-url/health`
+### [ ] Post-deployment Testing
+- [ ] Verify all endpoints work
+- [ ] Test WebSocket real-time features
+- [ ] Verify OAuth authentication
+- [ ] Check CORS configuration
+- [ ] Monitor application performance
 
-### 2. 功能測試
-- [ ] API 端點響應正常
-- [ ] 數據庫連接正常
-- [ ] OAuth 認證流程
-- [ ] WebSocket 連接
-- [ ] CORS 配置正確
+## 📝 Documentation
 
-### 3. 監控設置
-- [ ] 設置 CloudWatch 日誌
-- [ ] 配置性能監控
-- [ ] 設置告警規則
-- [ ] 檢查資源使用情況
+### [ ] Update Documentation
+- [ ] Update README with production setup
+- [ ] Document deployment process
+- [ ] Update troubleshooting guide
+- [ ] Document monitoring and alerting
 
-## 🔐 安全配置
+## 🔄 Maintenance
 
-### 1. 網絡安全
-- [ ] 配置適當的安全組
-- [ ] 啟用 VPC Flow Logs
-- [ ] 限制數據庫訪問
+### [ ] Regular Maintenance
+- [ ] Schedule regular security updates
+- [ ] Monitor resource usage
+- [ ] Review and rotate secrets
+- [ ] Update dependencies
+- [ ] Backup verification
 
-### 2. 應用安全
-- [ ] 使用強密碼和機密
-- [ ] 啟用 HTTPS/TLS
-- [ ] 配置適當的 CORS
-- [ ] 設置 Session 安全選項
+---
 
-### 3. 運營安全
-- [ ] 定期備份數據庫
-- [ ] 更新系統補丁
-- [ ] 監控安全事件
-- [ ] 實施最小權限原則
+## Quick Reference
 
-## 🔄 CI/CD 設置
+### Production Environment Variables to Set:
+1. `APP_ENV=production`
+2. `FRONTEND_URL=https://your-domain.com`
+3. `ALLOWED_ORIGINS=https://your-domain.com,https://www.your-domain.com`
+4. `GOOGLE_CALLBACK_URL=https://your-domain.com/auth/google/callback`
+5. `JWT_SECRET=<strong-secret>`
+6. `SESSION_SECRET=<strong-secret>`
 
-### 1. GitHub Secrets 配置
-在 GitHub Repository Settings > Secrets 中添加:
-- [ ] `AWS_ACCESS_KEY_ID`
-- [ ] `AWS_SECRET_ACCESS_KEY`
-- [ ] `AWS_REGION`
-- [ ] `EKS_CLUSTER_NAME`
-- [ ] `ECR_REPOSITORY`
-
-### 2. 自動化部署
-- [ ] 推送到 main branch 觸發部署
-- [ ] 測試通過才能部署
-- [ ] 自動回滾機制
-
-## 🚨 常見問題排解
-
-### Pod 無法啟動
-```bash
-# 檢查 Pod 狀態
-kubectl describe pod <pod-name> -n tomlord-io
-
-# 檢查日誌
-kubectl logs <pod-name> -n tomlord-io
-```
-
-### 數據庫連接失敗
-- 檢查 RDS 安全組配置
-- 確認數據庫憑據正確
-- 檢查 VPC 和子網配置
-
-### 負載均衡器問題
-```bash
-# 檢查服務狀態
-kubectl get services -n tomlord-io
-
-# 檢查 AWS Load Balancer Controller
-kubectl logs -n kube-system deployment/aws-load-balancer-controller
-```
-
-### SSL/TLS 問題
-- 檢查證書配置
-- 確認域名解析正確
-- 檢查安全組 443 端口
-
-## 📊 監控和維護
-
-### 1. 性能監控
-- [ ] CPU 和記憶體使用率
-- [ ] 網絡流量
-- [ ] 數據庫性能
-- [ ] 響應時間
-
-### 2. 日誌管理
-- [ ] 應用日誌收集
-- [ ] 錯誤追蹤
-- [ ] 審計日誌
-
-### 3. 備份策略
-- [ ] 數據庫自動備份
-- [ ] 配置文件備份
-- [ ] 災難恢復計劃 
+### Files Updated:
+- ✅ `internal/websocket/hub.go` - Now uses environment variables
+- ✅ `internal/server/cors.go` - Now uses environment variables  
+- ✅ `internal/server/routes.go` - Now uses environment variables
+- ✅ `k8s/configmap.yaml` - Updated with new environment variables
+- ✅ `.env.example` - Updated with new environment variables
+- ✅ `docker-compose.yml` - Updated with new environment variables 

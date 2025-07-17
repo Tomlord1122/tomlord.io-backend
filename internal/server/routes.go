@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/markbates/goth/gothic"
 	"tomlord.io-backend/internal/middleware"
@@ -17,13 +17,8 @@ import (
 func (s *Server) RegisterRoutes() http.Handler {
 	r := gin.Default()
 
-	// CORS configuration
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:3000"}, // Add your frontend URLs
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-Requested-With"},
-		AllowCredentials: true, // Enable cookies/auth
-	}))
+	// CORS configuration - use the centralized SetupCORS function
+	r.Use(SetupCORS())
 
 	// Basic routes
 	r.GET("/", s.HelloWorldHandler)
@@ -159,7 +154,11 @@ func (s *Server) authCallbackHandler(c *gin.Context) {
 	s.authMiddleware.SetAuthCookie(c, token)
 
 	// Redirect to frontend auth callback with token
-	frontendURL := "http://localhost:5173" // Change this to your frontend URL
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		// Fallback to default development URL
+		frontendURL = "http://localhost:5173"
+	}
 	c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/auth/callback?token="+token)
 }
 

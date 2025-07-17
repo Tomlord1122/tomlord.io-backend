@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,8 +17,70 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		// Allow connections from our frontend
 		origin := r.Header.Get("Origin")
-		// Remember to add production origin
-		return origin == "http://localhost:5173" || origin == "http://localhost:3000" || origin == "http://minikube.local"
+
+		// Get environment to determine allowed origins
+		appEnv := os.Getenv("APP_ENV")
+
+		// Development and Minikube environments
+		if appEnv == "local" || appEnv == "minikube" {
+			allowedOrigins := []string{
+				"http://localhost:5173",
+				"http://localhost:3000",
+				"http://localhost:4173", // Vite preview
+				"http://minikube.local",
+				"http://192.168.49.2", // Minikube default IP
+				"http://192.168.49.1", // Minikube alternative IP
+			}
+
+			for _, allowed := range allowedOrigins {
+				if origin == allowed {
+					return true
+				}
+			}
+
+			// Allow any localhost origin for development
+			if strings.HasPrefix(origin, "http://localhost:") {
+				return true
+			}
+
+			// Allow any minikube IP origin
+			if strings.HasPrefix(origin, "http://192.168.49.") {
+				return true
+			}
+		}
+
+		// Production environment
+		if appEnv == "production" {
+			// Get allowed origins from environment variables
+			allowedOriginsEnv := os.Getenv("ALLOWED_ORIGINS")
+			frontendURL := os.Getenv("FRONTEND_URL")
+
+			var allowedOrigins []string
+
+			if allowedOriginsEnv != "" {
+				// Use ALLOWED_ORIGINS if set
+				allowedOrigins = strings.Split(allowedOriginsEnv, ",")
+			} else if frontendURL != "" {
+				// Fallback to FRONTEND_URL if ALLOWED_ORIGINS is not set
+				allowedOrigins = []string{frontendURL}
+			} else {
+				// Default fallback for production
+				allowedOrigins = []string{
+					"https://tomlord.vercel.app",
+					"https://www.tomlord.io",
+				}
+			}
+
+			for _, allowed := range allowedOrigins {
+				if origin == allowed {
+					return true
+				}
+			}
+		}
+
+		// Log rejected origins for debugging
+		log.Printf("WebSocket connection rejected from origin: %s (APP_ENV: %s)", origin, appEnv)
+		return false
 	},
 	// Add buffer sizes for better performance
 	ReadBufferSize:  1024,

@@ -44,6 +44,11 @@ spec:
             configMapKeyRef:
               name: tomlord-io-config
               key: BLUEPRINT_DB_SCHEMA
+        - name: ALLOWED_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: tomlord-io-config
+              key: ALLOWED_ORIGINS
         # Secret values
         - name: BLUEPRINT_DB_HOST
           valueFrom:
