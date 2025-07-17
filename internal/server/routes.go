@@ -272,11 +272,30 @@ func (s *Server) deleteMessageHandler(c *gin.Context) {
 		return
 	}
 
-	err := s.messageService.DeleteMessage(c.Request.Context(), messageID, userID)
+	// Get message info first to determine the room for broadcasting
+	message, err := s.messageService.GetMessageByID(c.Request.Context(), messageID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+		return
+	}
+
+	err = s.messageService.DeleteMessage(c.Request.Context(), messageID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete message"})
 		return
 	}
+
+	// Broadcast delete event to WebSocket clients
+	room := message.PostSlug // Always use PostSlug as the room name for consistency
+
+	deleteData := map[string]interface{}{
+		"message_id": messageID,
+		"user_id":    userID,
+	}
+
+	// Debug logging
+	fmt.Printf("Broadcasting delete event to room '%s': %+v\n", room, deleteData)
+	s.wsHub.BroadcastToRoom(room, websocket.MessageTypeCommentDelete, deleteData)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Message deleted successfully"})
 }
