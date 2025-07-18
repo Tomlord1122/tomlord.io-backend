@@ -1,5 +1,5 @@
 # Simple Makefile for a Go project
-include .env.production
+include .env
 export
 
 # Database URL for migrations (using environment variables)

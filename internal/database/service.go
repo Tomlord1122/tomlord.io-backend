@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/joho/godotenv/autoload"
@@ -32,8 +33,23 @@ type dbService struct {
 
 // NewDBService creates a new database service with connection pool
 func NewDBService(ctx context.Context) (DBService, error) {
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s",
-		username, password, host, port, database, schema)
+	var connStr string
+
+	// 優先使用 DATABASE_URL 環境變量
+	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		connStr = databaseURL
+	} else {
+		// 使用個別環境變量構建連接字符串
+		sslMode := "disable"
+		if os.Getenv("APP_ENV") == "production" {
+			sslMode = "require"
+		}
+
+		connStr = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s&search_path=%s",
+			username, password, host, port, database, sslMode, schema)
+	}
+
+	log.Printf("Connecting to database with SSL mode: %s", getSslModeFromConnStr(connStr))
 
 	pool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
@@ -48,12 +64,21 @@ func NewDBService(ctx context.Context) (DBService, error) {
 
 	queries := db.New(pool)
 
-	log.Printf("Successfully connected to database: %s", database)
-
 	return &dbService{
 		pool:    pool,
 		queries: queries,
 	}, nil
+}
+
+// Helper function to extract SSL mode for logging
+func getSslModeFromConnStr(connStr string) string {
+	if contains := fmt.Sprintf("%s", connStr); len(contains) > 0 {
+		if os.Getenv("APP_ENV") == "production" {
+			return "require"
+		}
+		return "disable"
+	}
+	return "unknown"
 }
 
 // Health checks the health of the database connection.
