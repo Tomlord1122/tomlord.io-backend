@@ -4,9 +4,9 @@ export
 
 # Database URL for migrations (using environment variables)
 # For local development (Docker)
-DB_URL_LOCAL=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@localhost:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=disable
+DB_URL_LOCAL=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@${BLUEPRINT_DB_HOST}:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=require
 
-# For production (Neon)
+# For production (Supabase)
 DB_URL_PROD=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@${BLUEPRINT_DB_HOST}:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=require
 
 # Use production URL if APP_ENV is production, otherwise use local
@@ -140,42 +140,5 @@ watch:
                 exit 1; \
             fi; \
         fi
-
-# Fly.io deployment commands
-fly-deploy:
-	@echo "Deploying to Fly.io..."
-	@flyctl deploy
-
-fly-status:
-	@echo "Checking Fly.io status..."
-	@flyctl status
-
-fly-logs:
-	@echo "Showing Fly.io logs..."
-	@flyctl logs
-
-fly-dashboard:
-	@echo "Opening Fly.io dashboard..."
-	@flyctl dashboard
-
-fly-secrets-list:
-	@echo "Listing Fly.io secrets..."
-	@flyctl secrets list
-
-fly-postgres-create:
-	@echo "Creating Fly.io PostgreSQL database..."
-	@flyctl postgres create --name tomlord-db --region hkg
-
-fly-postgres-attach:
-	@echo "Attaching PostgreSQL to app..."
-	@flyctl postgres attach --postgres-app tomlord-db --app tomlord-io-backend
-
-fly-postgres-connect:
-	@echo "Connecting to Fly.io PostgreSQL..."
-	@flyctl postgres connect -a tomlord-db
-
-fly-auto-deploy:
-	@echo "Running automated Fly.io deployment..."
-	@./scripts/deploy-fly.sh
 
 .PHONY: all build run test clean watch docker-up docker-run docker-down docker-logs createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc setup wait-for-db itest fly-deploy fly-status fly-logs fly-dashboard fly-secrets-list fly-postgres-create fly-postgres-attach fly-postgres-connect fly-auto-deploy

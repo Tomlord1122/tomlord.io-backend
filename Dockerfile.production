@@ -25,14 +25,16 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -a -installsuffix cgo \
     -o main cmd/api/main.go
 
-# TODO:[PRODUCTION] Install migrate tool for database migrations
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-
 # Production stage - Use alpine instead of scratch to support migrate tool and SSH
 FROM alpine:3.20.1 AS prod
 
-# Install necessary runtime dependencies including shell
-RUN apk add --no-cache ca-certificates tzdata bash
+# Install necessary runtime dependencies including shell and migrate tool
+RUN apk add --no-cache ca-certificates tzdata bash curl
+
+# TODO:[PRODUCTION] Install migrate tool directly in Alpine
+RUN curl -L https://github.com/golang-migrate/migrate/releases/latest/download/migrate.linux-amd64.tar.gz | tar xvz \
+    && mv migrate /usr/local/bin/migrate \
+    && chmod +x /usr/local/bin/migrate
 
 # Create non-root user in alpine
 RUN adduser -D -g '' appuser
@@ -46,14 +48,8 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # Copy binary
 COPY --from=builder /app/main /main
 
-# TODO:[PRODUCTION] Copy migrate tool from builder stage
-COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
-
 # Copy migrations for migration jobs
 COPY --from=builder /app/migrations /migrations
-
-# Make migrate executable
-RUN chmod +x /usr/local/bin/migrate
 
 USER appuser
 
