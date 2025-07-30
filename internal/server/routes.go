@@ -49,9 +49,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 			blogs.GET("/:slug/messages", s.authMiddleware.OptionalAuth(), s.getMessagesByBlogSlugHandler)
 
 			// Protected routes (for blog management - might want to add admin middleware later)
-			blogs.POST("/", s.authMiddleware.RequireAuth(), s.createBlogHandler)
-			blogs.PUT("/:slug", s.authMiddleware.RequireAuth(), s.updateBlogHandler)
-			blogs.DELETE("/:slug", s.authMiddleware.RequireAuth(), s.deleteBlogHandler)
+			isProduction := os.Getenv("APP_ENV") == "production"
+			if !isProduction {
+				blogs.POST("/", s.authMiddleware.RequireAuth(), s.createBlogHandler)
+				blogs.PUT("/:slug", s.authMiddleware.RequireAuth(), s.updateBlogHandler)
+				blogs.DELETE("/:slug", s.authMiddleware.RequireAuth(), s.deleteBlogHandler)
+			}
 		}
 
 		// Temporary sync endpoint for initial blog migration (remove after sync)
