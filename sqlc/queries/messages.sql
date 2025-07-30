@@ -81,6 +81,10 @@ RETURNING *;
 DELETE FROM messages
 WHERE id = $1 AND user_id = $2;
 
+-- name: DeleteMessageBySuperUser :exec
+DELETE FROM messages
+WHERE id = $1;
+
 -- name: CountMessagesByPostSlug :one
 SELECT COUNT(*) FROM messages
 WHERE post_slug = $1;

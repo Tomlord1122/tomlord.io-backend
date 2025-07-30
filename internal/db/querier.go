@@ -25,6 +25,7 @@ type Querier interface {
 	DeleteBlog(ctx context.Context, id pgtype.UUID) error
 	DeleteBlogBySlug(ctx context.Context, slug string) error
 	DeleteMessage(ctx context.Context, arg DeleteMessageParams) error
+	DeleteMessageBySuperUser(ctx context.Context, id pgtype.UUID) error
 	DeleteMessageThumb(ctx context.Context, arg DeleteMessageThumbParams) error
 	DeleteUser(ctx context.Context, id pgtype.UUID) error
 	GetAllBlogs(ctx context.Context, arg GetAllBlogsParams) ([]Blog, error)

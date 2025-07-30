@@ -125,6 +125,16 @@ func (q *Queries) DeleteMessage(ctx context.Context, arg DeleteMessageParams) er
 	return err
 }
 
+const deleteMessageBySuperUser = `-- name: DeleteMessageBySuperUser :exec
+DELETE FROM messages
+WHERE id = $1
+`
+
+func (q *Queries) DeleteMessageBySuperUser(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteMessageBySuperUser, id)
+	return err
+}
+
 const getMessageByID = `-- name: GetMessageByID :one
 SELECT m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at, m.blog_id, u.name as user_name, u.picture_url as user_picture_url,
        COALESCE(thumb_counts.count, 0) as thumb_count

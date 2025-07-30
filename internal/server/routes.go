@@ -70,7 +70,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 			// Protected routes
 			messages.POST("/", s.authMiddleware.RequireAuth(), s.createMessageHandler)
 			messages.PUT("/:id", s.authMiddleware.RequireAuth(), s.updateMessageHandler)
-			messages.DELETE("/:id", s.authMiddleware.RequireAuth(), s.deleteMessageHandler)
+			messages.DELETE("/:id", s.authMiddleware.RequireSuperUserOrOwner(), s.deleteMessageHandler)
 			messages.POST("/:id/thumb", s.authMiddleware.RequireAuth(), s.toggleThumbHandler)
 		}
 	}
@@ -274,6 +274,9 @@ func (s *Server) deleteMessageHandler(c *gin.Context) {
 		return
 	}
 
+	// Check if user is super user
+	isSuperUser := middleware.IsCurrentUserSuperUser(c)
+
 	// Get message info first to determine the room for broadcasting
 	message, err := s.messageService.GetMessageByID(c.Request.Context(), messageID)
 	if err != nil {
@@ -281,7 +284,15 @@ func (s *Server) deleteMessageHandler(c *gin.Context) {
 		return
 	}
 
-	err = s.messageService.DeleteMessage(c.Request.Context(), messageID, userID)
+	// Delete message based on user privileges
+	if isSuperUser {
+		// Super user can delete any message
+		err = s.messageService.DeleteMessageBySuperUser(c.Request.Context(), messageID)
+	} else {
+		// Regular user can only delete their own messages
+		err = s.messageService.DeleteMessage(c.Request.Context(), messageID, userID)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete message"})
 		return
@@ -291,15 +302,19 @@ func (s *Server) deleteMessageHandler(c *gin.Context) {
 	room := message.PostSlug // Always use PostSlug as the room name for consistency
 
 	deleteData := map[string]interface{}{
-		"message_id": messageID,
-		"user_id":    userID,
+		"message_id":    messageID,
+		"user_id":       userID,
+		"is_super_user": isSuperUser,
 	}
 
 	// Debug logging
 	fmt.Printf("Broadcasting delete event to room '%s': %+v\n", room, deleteData)
 	s.wsHub.BroadcastToRoom(room, websocket.MessageTypeCommentDelete, deleteData)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Message deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"message":               "Message deleted successfully",
+		"deleted_by_super_user": isSuperUser,
+	})
 }
 
 func (s *Server) toggleThumbHandler(c *gin.Context) {

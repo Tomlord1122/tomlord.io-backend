@@ -387,6 +387,23 @@ func (m *MessageService) DeleteMessage(ctx context.Context, messageID, userID st
 	return nil
 }
 
+// DeleteMessageBySuperUser deletes a message with super user privileges (no ownership check)
+func (m *MessageService) DeleteMessageBySuperUser(ctx context.Context, messageID string) error {
+	queries := m.dbService.GetQueries()
+
+	messageUUID := pgtype.UUID{}
+	if err := messageUUID.Scan(messageID); err != nil {
+		return fmt.Errorf("invalid message ID: %w", err)
+	}
+
+	err := queries.DeleteMessageBySuperUser(ctx, messageUUID)
+	if err != nil {
+		return fmt.Errorf("failed to delete message: %w", err)
+	}
+
+	return nil
+}
+
 // ToggleMessageThumb toggles a thumb/like on a message
 func (m *MessageService) ToggleMessageThumb(ctx context.Context, messageID, userID string) (bool, error) {
 	queries := m.dbService.GetQueries()

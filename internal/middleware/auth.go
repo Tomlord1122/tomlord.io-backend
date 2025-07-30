@@ -192,3 +192,59 @@ func GetCurrentUserID(c *gin.Context) (string, bool) {
 	}
 	return userID.(string), true
 }
+
+// IsCurrentUserSuperUser checks if the current user has super user privileges
+func IsCurrentUserSuperUser(c *gin.Context) bool {
+	isSuperUser, exists := c.Get("is_super_user")
+	if !exists {
+		return false
+	}
+	return isSuperUser.(bool)
+}
+
+// IsSuperUser checks if the current user has super user privileges
+func (a *AuthMiddleware) IsSuperUser(c *gin.Context) bool {
+	email, exists := c.Get("user_email")
+	if !exists {
+		return false
+	}
+
+	// TODO:[PRODUCTION] Add super user email to environment variables for production
+	superUserEmail := "r12944044@csie.ntu.edu.tw"
+	return email.(string) == superUserEmail
+}
+
+// RequireSuperUserOrOwner middleware that requires either super user privileges or ownership
+func (a *AuthMiddleware) RequireSuperUserOrOwner() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// First check if user is authenticated
+		tokenString := a.extractToken(c)
+		if tokenString == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "No token provided"})
+			c.Abort()
+			return
+		}
+
+		claims, err := a.ValidateJWT(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		// Add user info to context
+		c.Set("user_id", claims.UserID)
+		c.Set("user_email", claims.Email)
+		c.Set("user_name", claims.Name)
+		c.Set("google_id", claims.GoogleID)
+
+		// Check if user is super user
+		if a.IsSuperUser(c) {
+			c.Set("is_super_user", true)
+		} else {
+			c.Set("is_super_user", false)
+		}
+
+		c.Next()
+	}
+}
