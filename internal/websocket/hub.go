@@ -232,28 +232,25 @@ func (h *Hub) cleanupStaleConnections() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			h.mutex.RLock()
-			var staleClients []*Client
+	for range ticker.C {
+		h.mutex.RLock()
+		var staleClients []*Client
 
-			for _, clients := range h.rooms {
-				for client := range clients {
-					client.mutex.RLock()
-					if time.Since(client.lastPong) > pongWait {
-						staleClients = append(staleClients, client)
-					}
-					client.mutex.RUnlock()
+		for _, clients := range h.rooms {
+			for client := range clients {
+				client.mutex.RLock()
+				if time.Since(client.lastPong) > pongWait {
+					staleClients = append(staleClients, client)
 				}
+				client.mutex.RUnlock()
 			}
-			h.mutex.RUnlock()
+		}
+		h.mutex.RUnlock()
 
-			// Remove stale clients
-			for _, client := range staleClients {
-				log.Printf("Removing stale client: %s", client.userID)
-				h.unregister <- client
-			}
+		// Remove stale clients
+		for _, client := range staleClients {
+			log.Printf("Removing stale client: %s", client.userID)
+			h.unregister <- client
 		}
 	}
 }
@@ -373,7 +370,8 @@ func (c *Client) readPump() {
 		}
 
 		// Handle room subscription changes
-		if msg.Action == "subscribe" {
+		switch msg.Action {
+		case "subscribe":
 			c.hub.mutex.Lock()
 			c.mutex.Lock()
 			for _, room := range msg.Rooms {
@@ -386,7 +384,7 @@ func (c *Client) readPump() {
 			c.mutex.Unlock()
 			c.hub.mutex.Unlock()
 			log.Printf("Client %s subscribed to rooms: %v", c.userID, msg.Rooms)
-		} else if msg.Action == "unsubscribe" {
+		case "unsubscribe":
 			c.hub.mutex.Lock()
 			c.mutex.Lock()
 			for _, room := range msg.Rooms {

@@ -83,12 +83,3 @@ func (s *Server) Health() map[string]string {
 		"database": s.dbService.Health()["status"],
 	}
 }
-
-func (s *Server) gracefulShutdown(ctx context.Context, server *http.Server) error {
-	<-ctx.Done()
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	return server.Shutdown(shutdownCtx)
-}
