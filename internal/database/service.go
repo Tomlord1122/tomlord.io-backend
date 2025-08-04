@@ -72,7 +72,7 @@ func NewDBService(ctx context.Context) (DBService, error) {
 
 // Helper function to extract SSL mode for logging
 func getSslModeFromConnStr(connStr string) string {
-	if contains := fmt.Sprintf("%s", connStr); len(contains) > 0 {
+	if len(connStr) > 0 {
 		if os.Getenv("APP_ENV") == "production" {
 			return "require"
 		}

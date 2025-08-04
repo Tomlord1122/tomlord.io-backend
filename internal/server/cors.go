@@ -17,7 +17,8 @@ func SetupCORS() gin.HandlerFunc {
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 	frontendURL := os.Getenv("FRONTEND_URL")
 
-	if appEnv == "production" {
+	switch appEnv {
+	case "production":
 		// Production CORS configuration
 		if allowedOrigins != "" {
 			config.AllowOrigins = strings.Split(allowedOrigins, ",")
@@ -44,7 +45,7 @@ func SetupCORS() gin.HandlerFunc {
 		config.ExposeHeaders = []string{"Content-Length"}
 		config.MaxAge = 43200 // 12 hours
 
-	} else if appEnv == "minikube" {
+	case "minikube":
 		// Minikube CORS configuration
 		config.AllowOrigins = []string{
 			"http://localhost:5173",
@@ -66,7 +67,7 @@ func SetupCORS() gin.HandlerFunc {
 		config.ExposeHeaders = []string{"Content-Length"}
 		config.MaxAge = 43200 // 12 hours
 
-	} else {
+	default:
 		// Development CORS configuration (more permissive)
 		config.AllowOrigins = []string{
 			"http://localhost:5173",
