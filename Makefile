@@ -85,9 +85,6 @@ migratedown:
 migratedown1:
 	migrate -path migrations -database "$(DB_URL)" -verbose down 1
 
-# Create new migration
-new_migration:
-	migrate create -ext sql -dir migrations -seq $(name)
 
 # Setup: Start services and run migrations
 setup: docker-up wait-for-db migrateup
@@ -114,15 +111,6 @@ test:
 	@echo "Testing..."
 	@go test ./... -v
 
-# Integration Tests for the application
-itest:
-	@echo "Running integration tests..."
-	@go test ./internal/database -v
-
-# Clean the binary
-clean:
-	@echo "Cleaning..."
-	@rm -f main
 
 # Live Reload
 watch:

@@ -10,7 +10,6 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.7.5
-	github.com/joho/godotenv v1.5.1
 	github.com/markbates/goth v1.81.0
 	github.com/spf13/viper v1.20.1
 )
