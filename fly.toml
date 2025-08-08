@@ -7,7 +7,7 @@ app = 'tomlord-io-backend'
 primary_region = 'nrt'
 
 [build]
-  # dockerfile = 'Dockerfile.production'
+  dockerfile = "Dockerfile"
 
 [http_service]
   internal_port = 8080

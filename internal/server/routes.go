@@ -14,12 +14,7 @@ import (
 	"tomlord.io-backend/internal/websocket"
 )
 
-// Context key types to avoid collisions
-type contextKey string
-
-const (
-	providerKey contextKey = "provider"
-)
+// Note: gothic expects the context key to be the literal string "provider"
 
 func (s *Server) RegisterRoutes() http.Handler {
 	r := gin.Default()
@@ -129,7 +124,7 @@ func (s *Server) debugJWTHandler(c *gin.Context) {
 // Auth handlers
 func (s *Server) authHandler(c *gin.Context) {
 	provider := c.Param("provider")
-	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), providerKey, provider))
+	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
 
 	// Always start OAuth flow for new authentication
 	gothic.BeginAuthHandler(c.Writer, c.Request)
@@ -137,7 +132,7 @@ func (s *Server) authHandler(c *gin.Context) {
 
 func (s *Server) authCallbackHandler(c *gin.Context) {
 	provider := c.Param("provider")
-	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), providerKey, provider))
+	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
 
 	gothUser, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {

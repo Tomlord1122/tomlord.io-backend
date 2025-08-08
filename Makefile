@@ -4,8 +4,7 @@ export
 
 # Database URL for migrations (using environment variables)
 # For local development (Docker)
-# Use sslmode=disable for local containers
-DB_URL_LOCAL=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@${BLUEPRINT_DB_HOST}:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=disable
+DB_URL_LOCAL=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@${BLUEPRINT_DB_HOST}:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=require
 
 # For production (Supabase)
 DB_URL_PROD=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@${BLUEPRINT_DB_HOST}:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=require
@@ -62,13 +61,13 @@ docker-logs:
 
 # Create database (if not exists)
 createdb:
-    @echo "Database should be created automatically by Docker Compose"
-    @docker exec -it psql_tomlord.io psql -U ${BLUEPRINT_DB_USERNAME} -d ${BLUEPRINT_DB_DATABASE} -c "SELECT 1;" || \
-    docker exec -it psql_tomlord.io createdb --username=${BLUEPRINT_DB_USERNAME} --owner=${BLUEPRINT_DB_USERNAME} ${BLUEPRINT_DB_DATABASE}
+	@echo "Database should be created automatically by Docker Compose"
+	@docker exec -it psql_bp psql -U ${BLUEPRINT_DB_USERNAME} -d ${BLUEPRINT_DB_DATABASE} -c "SELECT 1;" || \
+	docker exec -it psql_bp createdb --username=${BLUEPRINT_DB_USERNAME} --owner=${BLUEPRINT_DB_USERNAME} ${BLUEPRINT_DB_DATABASE}
 
 # Drop database
 dropdb:
-    docker exec -it psql_tomlord.io dropdb --username=${BLUEPRINT_DB_USERNAME} ${BLUEPRINT_DB_DATABASE}
+	docker exec -it psql_bp dropdb --username=${BLUEPRINT_DB_USERNAME} ${BLUEPRINT_DB_DATABASE}
 
 # Run all migrations up
 migrateup:
@@ -86,9 +85,6 @@ migratedown:
 migratedown1:
 	migrate -path migrations -database "$(DB_URL)" -verbose down 1
 
-# Create new migration
-new_migration:
-	migrate create -ext sql -dir migrations -seq $(name)
 
 # Setup: Start services and run migrations
 setup: docker-up wait-for-db migrateup
@@ -96,15 +92,15 @@ setup: docker-up wait-for-db migrateup
 
 # Wait for database to be ready
 wait-for-db:
-    @echo "Waiting for database to be ready..."
-    @for i in 1 2 3 4 5 6 7 8 9 10; do \
-        if docker exec psql_tomlord.io pg_isready -U ${BLUEPRINT_DB_USERNAME} -d ${BLUEPRINT_DB_DATABASE} >/dev/null 2>&1; then \
-            echo "Database is ready!"; \
-            break; \
-        fi; \
-        echo "Waiting for database... ($$i/10)"; \
-        sleep 2; \
-    done
+	@echo "Waiting for database to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if docker exec psql_bp pg_isready -U ${BLUEPRINT_DB_USERNAME} -d ${BLUEPRINT_DB_DATABASE} >/dev/null 2>&1; then \
+			echo "Database is ready!"; \
+			break; \
+		fi; \
+		echo "Waiting for database... ($$i/10)"; \
+		sleep 2; \
+	done
 
 # Generate sqlc code
 sqlc:
@@ -115,15 +111,6 @@ test:
 	@echo "Testing..."
 	@go test ./... -v
 
-# Integration Tests for the application
-itest:
-	@echo "Running integration tests..."
-	@go test ./internal/database -v
-
-# Clean the binary
-clean:
-	@echo "Cleaning..."
-	@rm -f main
 
 # Live Reload
 watch:
