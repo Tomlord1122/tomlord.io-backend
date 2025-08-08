@@ -31,6 +31,16 @@ type dbService struct {
 	queries *db.Queries
 }
 
+// Database connection settings (migrated from legacy database.go)
+var (
+    database = os.Getenv("BLUEPRINT_DB_DATABASE")
+    password = os.Getenv("BLUEPRINT_DB_PASSWORD")
+    username = os.Getenv("BLUEPRINT_DB_USERNAME")
+    port     = os.Getenv("BLUEPRINT_DB_PORT")
+    host     = os.Getenv("BLUEPRINT_DB_HOST")
+    schema   = os.Getenv("BLUEPRINT_DB_SCHEMA")
+)
+
 // NewDBService creates a new database service with connection pool
 func NewDBService(ctx context.Context) (DBService, error) {
 	var connStr string

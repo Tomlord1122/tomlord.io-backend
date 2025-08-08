@@ -1,89 +1,29 @@
 package server
 
 import (
-	"os"
-	"strings"
-
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
+    "github.com/gin-contrib/cors"
+    "github.com/gin-gonic/gin"
+    "tomlord.io-backend/internal/websocket"
 )
 
-// SetupCORS configures CORS based on environment
+// SetupCORS configures CORS using a centralized origin policy
 func SetupCORS() gin.HandlerFunc {
-	config := cors.DefaultConfig()
+    config := cors.DefaultConfig()
 
-	// Get environment variables
-	appEnv := os.Getenv("APP_ENV")
-	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
-	frontendURL := os.Getenv("FRONTEND_URL")
+    // Use the same allowed origins as WebSocket to keep parity
+    config.AllowOrigins = websocket.AllowedOrigins()
 
-	switch appEnv {
-	case "production":
-		// Production CORS configuration
-		if allowedOrigins != "" {
-			config.AllowOrigins = strings.Split(allowedOrigins, ",")
-		} else if frontendURL != "" {
-			// Fallback to FRONTEND_URL if ALLOWED_ORIGINS is not set
-			config.AllowOrigins = []string{frontendURL}
-		} else {
-			// Default fallback for production
-			config.AllowOrigins = []string{
-				"https://tomlord.fyi",
-			}
-		}
+    config.AllowCredentials = true
+    config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"}
+    config.AllowHeaders = []string{
+        "Accept",
+        "Authorization",
+        "Content-Type",
+        "X-Requested-With",
+        "Origin",
+    }
+    config.ExposeHeaders = []string{"Content-Length"}
+    config.MaxAge = 43200 // 12 hours
 
-		// Secure configuration for production
-		config.AllowCredentials = true
-		config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"}
-		config.AllowHeaders = []string{
-			"Accept",
-			"Authorization",
-			"Content-Type",
-			"X-Requested-With",
-			"Origin",
-		}
-		config.ExposeHeaders = []string{"Content-Length"}
-		config.MaxAge = 43200 // 12 hours
-
-	case "minikube":
-		// Minikube CORS configuration
-		config.AllowOrigins = []string{
-			"http://localhost:5173",
-			"http://localhost:3000",
-			"http://localhost:4173", // Vite preview
-			"http://minikube.local",
-			"http://192.168.49.2", // Minikube default IP
-			"http://192.168.49.1", // Minikube alternative IP
-		}
-		config.AllowCredentials = true
-		config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"}
-		config.AllowHeaders = []string{
-			"Accept",
-			"Authorization",
-			"Content-Type",
-			"X-Requested-With",
-			"Origin",
-		}
-		config.ExposeHeaders = []string{"Content-Length"}
-		config.MaxAge = 43200 // 12 hours
-
-	default:
-		// Development CORS configuration (more permissive)
-		config.AllowOrigins = []string{
-			"http://localhost:5173",
-			"http://localhost:3000",
-			"http://localhost:4173", // Vite preview
-		}
-		config.AllowCredentials = true
-		config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"}
-		config.AllowHeaders = []string{
-			"Accept",
-			"Authorization",
-			"Content-Type",
-			"X-Requested-With",
-			"Origin",
-		}
-	}
-
-	return cors.New(config)
+    return cors.New(config)
 }
