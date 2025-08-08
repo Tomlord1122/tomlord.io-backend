@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -124,17 +123,16 @@ func (s *Server) debugJWTHandler(c *gin.Context) {
 // Auth handlers
 func (s *Server) authHandler(c *gin.Context) {
 	provider := c.Param("provider")
-	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
-
+	req := gothic.GetContextWithProvider(c.Request, provider)
 	// Always start OAuth flow for new authentication
-	gothic.BeginAuthHandler(c.Writer, c.Request)
+	gothic.BeginAuthHandler(c.Writer, req)
 }
 
 func (s *Server) authCallbackHandler(c *gin.Context) {
 	provider := c.Param("provider")
-	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
+	req := gothic.GetContextWithProvider(c.Request, provider)
 
-	gothUser, err := gothic.CompleteUserAuth(c.Writer, c.Request)
+	gothUser, err := gothic.CompleteUserAuth(c.Writer, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

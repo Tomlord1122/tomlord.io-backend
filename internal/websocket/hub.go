@@ -1,30 +1,30 @@
 package websocket
 
 import (
-    "encoding/json"
-    "log"
-    "net/http"
-    "sync"
-    "time"
+	"encoding/json"
+	"log"
+	"net/http"
+	"sync"
+	"time"
 
-    "github.com/gorilla/websocket"
+	"github.com/gorilla/websocket"
 )
 
 // WebSocket upgrader with CORS settings
 var upgrader = websocket.Upgrader{
-    CheckOrigin: func(r *http.Request) bool {
-        origin := r.Header.Get("Origin")
-        for _, allowed := range AllowedOrigins() {
-            if origin == allowed {
-                return true
-            }
-        }
-        log.Printf("WebSocket connection rejected from origin: %s", origin)
-        return false
-    },
-    // Add buffer sizes for better performance
-    ReadBufferSize:  1024,
-    WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		for _, allowed := range AllowedOrigins() {
+			if origin == allowed {
+				return true
+			}
+		}
+		log.Printf("WebSocket connection rejected from origin: %s", origin)
+		return false
+	},
+	// Add buffer sizes for better performance
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
 }
 
 // Message types for WebSocket communication
