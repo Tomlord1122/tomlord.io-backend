@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/markbates/goth/gothic"
+	"github.com/spf13/viper"
 	"tomlord.io-backend/internal/middleware"
 	"tomlord.io-backend/internal/services"
 	"tomlord.io-backend/internal/websocket"
@@ -56,7 +56,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 			blogs.GET("/:slug/messages", s.authMiddleware.OptionalAuth(), s.getMessagesByBlogSlugHandler)
 
 			// Protected routes (for blog management - might want to add admin middleware later)
-			isProduction := os.Getenv("APP_ENV") == "production"
+			viper.AutomaticEnv()
+			isProduction := viper.GetString("APP_ENV") == "production"
 			if !isProduction {
 				blogs.POST("/", s.authMiddleware.RequireAuth(), s.createBlogHandler)
 				blogs.PUT("/:slug", s.authMiddleware.RequireAuth(), s.updateBlogHandler)
@@ -164,11 +165,9 @@ func (s *Server) authCallbackHandler(c *gin.Context) {
 	s.authMiddleware.SetAuthCookie(c, token)
 
 	// Redirect to frontend auth callback with token
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		// Fallback to default development URL
-		frontendURL = "http://localhost:5173"
-	}
+	viper.AutomaticEnv()
+	viper.SetDefault("FRONTEND_URL", "http://localhost:5173")
+	frontendURL := viper.GetString("FRONTEND_URL")
 	c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/auth/callback?token="+token)
 }
 

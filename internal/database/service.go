@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/joho/godotenv/autoload"
+	"github.com/spf13/viper"
 	"tomlord.io-backend/internal/db"
 )
 
@@ -33,25 +32,37 @@ type dbService struct {
 
 // Database connection settings (migrated from legacy database.go)
 var (
-    database = os.Getenv("BLUEPRINT_DB_DATABASE")
-    password = os.Getenv("BLUEPRINT_DB_PASSWORD")
-    username = os.Getenv("BLUEPRINT_DB_USERNAME")
-    port     = os.Getenv("BLUEPRINT_DB_PORT")
-    host     = os.Getenv("BLUEPRINT_DB_HOST")
-    schema   = os.Getenv("BLUEPRINT_DB_SCHEMA")
+	database string
+	password string
+	username string
+	port     string
+	host     string
+	schema   string
 )
 
 // NewDBService creates a new database service with connection pool
 func NewDBService(ctx context.Context) (DBService, error) {
 	var connStr string
 
+	viper.AutomaticEnv()
+	viper.SetDefault("APP_ENV", "local")
+	viper.SetDefault("BLUEPRINT_DB_SCHEMA", "public")
+
+	// Cache envs into module variables for logging and Close()
+	database = viper.GetString("BLUEPRINT_DB_DATABASE")
+	password = viper.GetString("BLUEPRINT_DB_PASSWORD")
+	username = viper.GetString("BLUEPRINT_DB_USERNAME")
+	port = viper.GetString("BLUEPRINT_DB_PORT")
+	host = viper.GetString("BLUEPRINT_DB_HOST")
+	schema = viper.GetString("BLUEPRINT_DB_SCHEMA")
+
 	// 優先使用 DATABASE_URL 環境變量
-	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+	if databaseURL := viper.GetString("DATABASE_URL"); databaseURL != "" {
 		connStr = databaseURL
 	} else {
 		// 使用個別環境變量構建連接字符串
 		sslMode := "disable"
-		if os.Getenv("APP_ENV") == "production" {
+		if viper.GetString("APP_ENV") == "production" {
 			sslMode = "require"
 		}
 
@@ -83,7 +94,7 @@ func NewDBService(ctx context.Context) (DBService, error) {
 // Helper function to extract SSL mode for logging
 func getSslModeFromConnStr(connStr string) string {
 	if len(connStr) > 0 {
-		if os.Getenv("APP_ENV") == "production" {
+		if viper.GetString("APP_ENV") == "production" {
 			return "require"
 		}
 		return "disable"

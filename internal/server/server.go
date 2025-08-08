@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"strconv"
 	"time"
 
-	_ "github.com/joho/godotenv/autoload"
+	"github.com/spf13/viper"
 
 	"tomlord.io-backend/internal/auth"
 	"tomlord.io-backend/internal/database"
@@ -28,10 +26,11 @@ type Server struct {
 }
 
 func NewServer() (*http.Server, error) {
-	port, _ := strconv.Atoi(os.Getenv("PORT"))
-	if port == 0 {
-		port = 8080
-	}
+	viper.AutomaticEnv()
+	viper.SetDefault("PORT", 8080)
+	viper.SetDefault("JWT_SECRET", "your-secret-key-change-in-production") // TODO:[PRODUCTION]
+
+	port := viper.GetInt("PORT")
 
 	// Initialize database service
 	ctx := context.Background()
@@ -45,10 +44,7 @@ func NewServer() (*http.Server, error) {
 	blogService := services.NewBlogService(dbService)
 
 	// Initialize auth middleware with JWT secret
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "your-secret-key-change-in-production" // Default secret - change in production
-	}
+	jwtSecret := viper.GetString("JWT_SECRET")
 	authMiddleware := middleware.NewAuthMiddleware(jwtSecret, authService)
 
 	// Create WebSocket hub and start it

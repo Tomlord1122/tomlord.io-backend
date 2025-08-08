@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
@@ -41,34 +40,24 @@ func NewAuthService(dbService database.DBService) *AuthService {
 
 // setupOAuthProviders configures OAuth providers
 func setupOAuthProviders() {
-	// Load configuration
+	// Load configuration via Viper only
 	viper.AutomaticEnv()
+	viper.SetDefault("GOOGLE_CALLBACK_URL", "http://localhost:8080/auth/google/callback")
+	viper.SetDefault("SESSION_SECRET", "your-session-secret-change-in-production") // TODO:[PRODUCTION] set strong secret
 
 	googleClientID := viper.GetString("GOOGLE_CLIENT_ID")
 	googleClientSecret := viper.GetString("GOOGLE_CLIENT_SECRET")
 	callbackURL := viper.GetString("GOOGLE_CALLBACK_URL")
-
-	if googleClientID == "" {
-		googleClientID = os.Getenv("GOOGLE_CLIENT_ID")
-	}
-	if googleClientSecret == "" {
-		googleClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
-	}
-	if callbackURL == "" {
-		callbackURL = os.Getenv("GOOGLE_CALLBACK_URL")
-		if callbackURL == "" {
-			callbackURL = "http://localhost:8080/auth/google/callback"
-		}
-	}
 
 	if googleClientID == "" || googleClientSecret == "" {
 		log.Fatal("Google OAuth credentials not found in environment variables")
 	}
 
 	// Setup session store
-	sessionSecret := os.Getenv("SESSION_SECRET")
+	sessionSecret := viper.GetString("SESSION_SECRET")
 	if sessionSecret == "" {
-		sessionSecret = "your-session-secret-change-in-production" // Default secret
+		// Should not happen due to default, but double-guard
+		sessionSecret = "your-session-secret-change-in-production"
 		log.Println("Warning: Using default session secret. Set SESSION_SECRET in production!")
 	}
 
@@ -78,8 +67,8 @@ func setupOAuthProviders() {
 		Path:     "/",
 		MaxAge:   86400 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
-		SameSite: 2,     // Lax
+		Secure:   viper.GetString("APP_ENV") == "production", // TODO:[PRODUCTION] ensure HTTPS
+		SameSite: 2,                                          // Lax
 	}
 
 	// Configure gothic to use our session store
