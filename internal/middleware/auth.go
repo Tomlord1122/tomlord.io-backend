@@ -40,7 +40,7 @@ func (a *AuthMiddleware) GenerateJWT(userInfo *auth.UserInfo) (string, error) {
 		Name:     userInfo.Name,
 		GoogleID: userInfo.GoogleID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // 24 hours
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)), // 1 hour
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    "tomlord.io-backend",
