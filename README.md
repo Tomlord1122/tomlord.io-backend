@@ -1,8 +1,10 @@
-[繁體中文](./README.zh-tw.md)
+
 
 # tomlord.io-backend Development Guide
 
-This guide documents how to develop, run, and deploy a production-grade Golang backend using this project’s stack: Gin (HTTP), Viper (config), sqlc + pgx (PostgreSQL), Gorilla WebSocket, Goth (OAuth), Docker/Compose, and Fly.io.
+This guide documents how to develop, run, and deploy a Golang backend using this project’s stack: Gin (HTTP), Viper (config), sqlc + pgx (PostgreSQL), Gorilla WebSocket, Goth (OAuth), Docker/Compose, and Fly.io.
+
+English | [繁體中文](./README.zh-tw.md)
 
 ## Project Architecture
 

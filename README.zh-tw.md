@@ -1,8 +1,10 @@
-[English](./README.md)
+
 
 # tomlord.io-backend Development Guide
 
-本指南詳細介紹了如何使用 Gin (HTTP)、Viper (設定)、sqlc + pgx (PostgreSQL)、Gorilla WebSocket、Goth (OAuth)、Docker/Compose 和 Fly.io 來開發、執行和部署一個生產等級的 Golang 後端專案。
+本指南詳細介紹了如何使用 Gin (HTTP)、Viper (設定)、sqlc + pgx (PostgreSQL)、Gorilla WebSocket、Goth (OAuth)、Docker/Compose 和 Fly.io 來開發、執行和部署一個 Golang 後端專案。
+
+[English](./README.md) | 繁體中文
 
 ## Project Architecture
 
