@@ -4,9 +4,11 @@
 
 This guide documents how to develop, run, and deploy a production-grade Golang backend using this project’s stack: Gin (HTTP), Viper (config), sqlc + pgx (PostgreSQL), Gorilla WebSocket, Goth (OAuth), Docker/Compose, and Fly.io.
 
-## Tech Stack
+## Project Architecture
 
-### Prerequisites
+![Project Architecture](./static/architecture.png)
+
+## Prerequisites
 
 To get started, you'll need to install the following tools:
 
