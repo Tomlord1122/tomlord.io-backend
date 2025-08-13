@@ -144,7 +144,7 @@ func (a *AuthMiddleware) SetAuthCookie(c *gin.Context, token string) {
 	c.SetCookie(
 		"auth_token",
 		token,
-		86400, // 24 hours in seconds
+		3600, // 1 hour in seconds
 		"/",
 		"",    // domain - empty for same domain
 		false, // secure - set to true in production with HTTPS

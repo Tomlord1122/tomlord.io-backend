@@ -60,7 +60,7 @@ func setupOAuthProviders() {
 	store := sessions.NewCookieStore([]byte(sessionSecret))
 	store.Options = &sessions.Options{
 		Path:     "/",
-		MaxAge:   86400 * 7, // 7 days
+		MaxAge:   3600, // 1 hour
 		HttpOnly: true,
 		Secure:   viper.GetString("APP_ENV") == "production", // TODO:[PRODUCTION] ensure HTTPS
 		SameSite: 2,                                          // Lax
