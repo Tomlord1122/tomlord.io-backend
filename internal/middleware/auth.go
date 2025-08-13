@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/spf13/viper"
 	"tomlord.io-backend/internal/auth"
 )
 
@@ -244,6 +245,43 @@ func (a *AuthMiddleware) RequireSuperUserOrOwner() gin.HandlerFunc {
 		} else {
 			c.Set("is_super_user", false)
 		}
+
+		c.Next()
+	}
+}
+
+// RequireSyncToken validates Authorization Bearer token signed with SYNC_SESSION_SECRET only.
+func RequireSyncToken() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "No bearer token provided"})
+			c.Abort()
+			return
+		}
+
+		tokenString := strings.TrimSpace(authHeader[len("Bearer "):])
+		secret := viper.GetString("SYNC_SESSION_SECRET")
+		if secret == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Sync secret not configured"})
+			c.Abort()
+			return
+		}
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrSignatureInvalid
+			}
+			return []byte(secret), nil
+		})
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid sync token"})
+			c.Abort()
+			return
+		}
+
+		// Mark request as sync-authorized (optional context flag)
+		c.Set("is_sync_request", true)
 
 		c.Next()
 	}

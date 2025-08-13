@@ -31,4 +31,5 @@ func Load() {
 	viper.SetDefault("SESSION_SECRET", "your-session-secret-change-in-production") // TODO:[PRODUCTION]
 	viper.SetDefault("BLUEPRINT_DB_SCHEMA", "public")
 	viper.SetDefault("ALLOWED_ORIGINS", "http://localhost:5173")
+	viper.SetDefault("SYNC_SESSION_SECRET", "your-sync-session-secret-change-in-production")
 }

@@ -20,8 +20,8 @@ type Claims struct {
 func main() {
 	config.Load()
 
-	jwtSecret := viper.GetString("JWT_SECRET")
-	fmt.Println("JWT_SECRET:", jwtSecret)
+	jwtSecret := viper.GetString("SYNC_SESSION_SECRET")
+	fmt.Println("SYNC_SESSION_SECRET:", jwtSecret)
 	if jwtSecret == "" {
 		jwtSecret = "your-secret-key-change-in-production"
 	}

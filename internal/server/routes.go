@@ -58,7 +58,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 		}
 
 		// Temporary sync endpoint for initial blog migration (remove after sync)
-		api.POST("/sync-blogs", s.authMiddleware.RequireAuth(), s.syncBlogsHandler)
+		api.POST("/sync-blogs", middleware.RequireSyncToken(), s.syncBlogsHandler)
 
 		// Message routes (comments)
 		messages := api.Group("/messages")
@@ -295,7 +295,7 @@ func (s *Server) deleteMessageHandler(c *gin.Context) {
 	// Broadcast delete event to WebSocket clients
 	room := message.PostSlug // Always use PostSlug as the room name for consistency
 
-	deleteData := map[string]interface{}{
+	deleteData := map[string]any{
 		"message_id":    messageID,
 		"user_id":       userID,
 		"is_super_user": isSuperUser,
@@ -344,7 +344,7 @@ func (s *Server) toggleThumbHandler(c *gin.Context) {
 	// Broadcast thumb update to WebSocket clients
 	room := message.PostSlug // Always use PostSlug as the room name for consistency
 
-	thumbData := map[string]interface{}{
+	thumbData := map[string]any{
 		"message_id":  messageID,
 		"thumbed":     thumbed,
 		"thumb_count": count,
@@ -440,7 +440,7 @@ func (s *Server) syncBlogsHandler(c *gin.Context) {
 		return
 	}
 
-	results := []interface{}{}
+	results := []any{}
 	errors := []string{}
 
 	for _, blogReq := range blogs {
@@ -463,7 +463,7 @@ func (s *Server) syncBlogsHandler(c *gin.Context) {
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("Failed to update %s: %v", blogReq.Slug, err))
 			} else {
-				results = append(results, map[string]interface{}{
+				results = append(results, map[string]any{
 					"action": "updated",
 					"blog":   blog,
 				})
@@ -474,7 +474,7 @@ func (s *Server) syncBlogsHandler(c *gin.Context) {
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("Failed to create %s: %v", blogReq.Slug, err))
 			} else {
-				results = append(results, map[string]interface{}{
+				results = append(results, map[string]any{
 					"action": "created",
 					"blog":   blog,
 				})
