@@ -30,4 +30,5 @@ func Load() {
 	viper.SetDefault("GOOGLE_CALLBACK_URL", "http://localhost:8080/auth/google/callback")
 	viper.SetDefault("SESSION_SECRET", "your-session-secret-change-in-production") // TODO:[PRODUCTION]
 	viper.SetDefault("BLUEPRINT_DB_SCHEMA", "public")
+	viper.SetDefault("ALLOWED_ORIGINS", "http://localhost:5173")
 }
