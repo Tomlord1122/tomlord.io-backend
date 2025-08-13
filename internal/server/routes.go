@@ -64,7 +64,6 @@ func (s *Server) RegisterRoutes() http.Handler {
 		messages := api.Group("/messages")
 		{
 			// Public routes (with optional auth for checking user thumbs)
-			messages.GET("/post/:slug", s.authMiddleware.OptionalAuth(), s.getMessagesByPostHandler)
 			messages.GET("/blog/:slug", s.authMiddleware.OptionalAuth(), s.getMessagesByBlogSlugHandler)
 
 			// Protected routes
@@ -172,34 +171,6 @@ func (s *Server) getMeHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"user": user})
-}
-
-// Message handlers
-func (s *Server) getMessagesByPostHandler(c *gin.Context) {
-	postSlug := c.Param("slug")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-
-	// Get current user ID if authenticated (for checking thumbs)
-	userID := ""
-	if currentUserID, exists := middleware.GetCurrentUserID(c); exists {
-		userID = currentUserID
-	}
-
-	req := services.ListMessagesRequest{
-		PostSlug: postSlug,
-		Limit:    int32(limit),
-		Offset:   int32(offset),
-		UserID:   userID,
-	}
-
-	messages, err := s.messageService.GetMessagesByPostSlug(c.Request.Context(), req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get messages"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
 
 func (s *Server) createMessageHandler(c *gin.Context) {

@@ -31,7 +31,6 @@ type Querier interface {
 	GetMessageByID(ctx context.Context, id pgtype.UUID) (GetMessageByIDRow, error)
 	// Note: blog slug now maps to post_slug directly
 	GetMessagesByBlogSlug(ctx context.Context, arg GetMessagesByBlogSlugParams) ([]GetMessagesByBlogSlugRow, error)
-	GetMessagesByPostSlug(ctx context.Context, arg GetMessagesByPostSlugParams) ([]GetMessagesByPostSlugRow, error)
 	GetThumbCountForMessage(ctx context.Context, messageID pgtype.UUID) (int64, error)
 	GetUserByGoogleID(ctx context.Context, googleID string) (User, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)

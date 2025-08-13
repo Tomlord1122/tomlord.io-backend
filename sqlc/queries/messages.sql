@@ -17,21 +17,6 @@ LEFT JOIN (
 ) thumb_counts ON m.id = thumb_counts.message_id
 WHERE m.id = $1;
 
--- name: GetMessagesByPostSlug :many
-SELECT 
-  m.id, m.user_id, m.post_slug, m.message, m.thumb_count, m.created_at, m.updated_at,
-  u.name AS user_name, u.picture_url AS user_picture_url,
-  COALESCE(thumb_counts.count, 0) AS thumb_count
-FROM messages m
-JOIN users u ON m.user_id = u.id
-LEFT JOIN (
-  SELECT message_id, COUNT(*) AS count
-  FROM message_thumbs
-  GROUP BY message_id
-) thumb_counts ON m.id = thumb_counts.message_id
-WHERE m.post_slug = $1
-ORDER BY m.created_at DESC
-LIMIT $2 OFFSET $3;
 
 -- name: GetMessagesByBlogSlug :many
 -- Note: blog slug now maps to post_slug directly
