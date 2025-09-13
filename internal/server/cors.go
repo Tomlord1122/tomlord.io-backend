@@ -23,7 +23,7 @@ func SetupCORS() gin.HandlerFunc {
 		"Origin",
 	}
 	config.ExposeHeaders = []string{"Content-Length"}
-	config.MaxAge = 43200 // 12 hours
+	config.MaxAge = 600 // 10 minutes
 
 	return cors.New(config)
 }
