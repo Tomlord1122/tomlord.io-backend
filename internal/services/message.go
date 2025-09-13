@@ -252,7 +252,7 @@ func (m *MessageService) ToggleMessageThumb(ctx context.Context, messageID, user
 	}
 
 	var toggled bool
-	if err := m.dbService.WithTx(ctx, func(qtx *db.Queries) error {
+	if err := m.dbService.RunTransaction(ctx, func(qtx *db.Queries) error {
 		// Check if user has already thumbed this message within the transaction
 		t, err := qtx.CheckUserThumbedMessage(ctx, db.CheckUserThumbedMessageParams{
 			MessageID: messageUUID,

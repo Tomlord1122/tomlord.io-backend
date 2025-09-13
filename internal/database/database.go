@@ -26,7 +26,7 @@ type DBService interface {
 
 	// WithTx executes the provided function within a database transaction.
 	// The transaction is committed if fn returns nil, otherwise it is rolled back.
-	WithTx(ctx context.Context, fn func(q *db.Queries) error) error
+	RunTransaction(ctx context.Context, fn func(q *db.Queries) error) error
 }
 
 type dbService struct {
@@ -147,7 +147,7 @@ func (s *dbService) GetPool() *pgxpool.Pool {
 }
 
 // WithTx executes the provided function within a transaction.
-func (s *dbService) WithTx(ctx context.Context, fn func(q *db.Queries) error) error {
+func (s *dbService) RunTransaction(ctx context.Context, fn func(q *db.Queries) error) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
