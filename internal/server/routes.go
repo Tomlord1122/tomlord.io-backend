@@ -49,12 +49,19 @@ func (s *Server) RegisterRoutes() http.Handler {
 			blogs.GET("/:slug", s.getBlogBySlugHandler)
 			blogs.GET("/:slug/messages", s.authMiddleware.OptionalAuth(), s.getMessagesByBlogSlugHandler)
 
-			// Protected routes (for blog management - might want to add admin middleware later)
-			isProduction := viper.GetString("APP_ENV") == "production"
-			if !isProduction {
-				blogs.POST("/", s.authMiddleware.RequireAuth(), s.createBlogHandler)
-				blogs.PUT("/:slug", s.authMiddleware.RequireAuth(), s.updateBlogHandler)
-			}
+			// Protected routes (super user only)
+			blogs.POST("/", s.authMiddleware.RequireSuperUser(), s.createBlogHandler)
+			blogs.PUT("/:slug", s.authMiddleware.RequireSuperUser(), s.updateBlogHandler)
+		}
+
+		// Page routes (CMS)
+		pages := api.Group("/pages")
+		{
+			// Public routes
+			pages.GET("/:name", s.getPageByNameHandler)
+
+			// Protected routes (super user only)
+			pages.PUT("/:name", s.authMiddleware.RequireSuperUser(), s.updatePageHandler)
 		}
 
 		// Temporary sync endpoint for initial blog migration (remove after sync)
@@ -427,6 +434,7 @@ func (s *Server) syncBlogsHandler(c *gin.Context) {
 				Duration:    blogReq.Duration,
 				Tags:        blogReq.Tags,
 				Description: blogReq.Description,
+				Content:     blogReq.Content,
 				IsPublished: blogReq.IsPublished,
 			}
 
@@ -499,4 +507,38 @@ func (s *Server) websocketHandler(c *gin.Context) {
 	}
 
 	s.wsHub.HandleWebSocket(c.Writer, c.Request, userID)
+}
+
+// Page handlers
+func (s *Server) getPageByNameHandler(c *gin.Context) {
+	name := c.Param("name")
+
+	page, err := s.pageService.GetPageByName(c.Request.Context(), name)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"page": page})
+}
+
+func (s *Server) updatePageHandler(c *gin.Context) {
+	name := c.Param("name")
+
+	var req services.UpsertPageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Ensure the name in the URL matches the request
+	req.Name = name
+
+	page, err := s.pageService.UpsertPage(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update page"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"page": page})
 }

@@ -1,6 +1,6 @@
 -- name: CreateBlog :one
-INSERT INTO blogs (title, slug, date, lang, duration, tags, description, is_published)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO blogs (title, slug, date, lang, duration, tags, description, is_published, content)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: GetBlogByID :one
@@ -37,7 +37,7 @@ LIMIT $1 OFFSET $2;
 
 -- name: UpdateBlogBySlug :one
 UPDATE blogs
-SET title = $2, date = $3, lang = $4, duration = $5, tags = $6, description = $7, is_published = $8, updated_at = NOW()
+SET title = $2, date = $3, lang = $4, duration = $5, tags = $6, description = $7, is_published = $8, content = $9, updated_at = NOW()
 WHERE slug = $1
 RETURNING *;
 

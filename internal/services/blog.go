@@ -24,6 +24,7 @@ type BlogInfo struct {
 	Duration    string   `json:"duration"`
 	Tags        []string `json:"tags"`
 	Description string   `json:"description,omitempty"`
+	Content     string   `json:"content,omitempty"`
 	IsPublished bool     `json:"is_published"`
 	CreatedAt   string   `json:"created_at"`
 	UpdatedAt   string   `json:"updated_at"`
@@ -42,6 +43,7 @@ type CreateBlogRequest struct {
 	Duration    string   `json:"duration"`
 	Tags        []string `json:"tags"`
 	Description string   `json:"description"`
+	Content     string   `json:"content"`
 	IsPublished bool     `json:"is_published"`
 }
 
@@ -52,6 +54,7 @@ type UpdateBlogRequest struct {
 	Duration    string   `json:"duration"`
 	Tags        []string `json:"tags"`
 	Description string   `json:"description"`
+	Content     string   `json:"content"`
 	IsPublished bool     `json:"is_published"`
 }
 
@@ -96,6 +99,14 @@ func (b *BlogService) CreateBlog(ctx context.Context, req CreateBlogRequest) (*B
 		}
 	}
 
+	// Convert content to pgtype.Text
+	content := pgtype.Text{}
+	if req.Content != "" {
+		if err := content.Scan(req.Content); err != nil {
+			return nil, fmt.Errorf("failed to scan content: %w", err)
+		}
+	}
+
 	blog, err := queries.CreateBlog(ctx, db.CreateBlogParams{
 		Title:       req.Title,
 		Slug:        req.Slug,
@@ -105,6 +116,7 @@ func (b *BlogService) CreateBlog(ctx context.Context, req CreateBlogRequest) (*B
 		Tags:        req.Tags,
 		Description: description,
 		IsPublished: pgtype.Bool{Bool: req.IsPublished, Valid: true},
+		Content:     content,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blog: %w", err)
@@ -135,7 +147,7 @@ func (b *BlogService) GetBlogWithMessageCountBySlug(ctx context.Context, slug st
 	}
 
 	return &BlogWithMessageCount{
-		BlogInfo:     *b.convertBlogToInfoFromRow(result.ID, result.Title, result.Slug, result.Date, result.Lang, result.Duration, result.Tags, result.Description, result.IsPublished, result.CreatedAt, result.UpdatedAt),
+		BlogInfo:     *b.convertBlogToInfoFromRow(result.ID, result.Title, result.Slug, result.Date, result.Lang, result.Duration, result.Tags, result.Description, result.Content, result.IsPublished, result.CreatedAt, result.UpdatedAt),
 		MessageCount: result.MessageCount,
 	}, nil
 }
@@ -216,6 +228,14 @@ func (b *BlogService) UpdateBlogBySlug(ctx context.Context, slug string, req Upd
 		}
 	}
 
+	// Convert content to pgtype.Text
+	content := pgtype.Text{}
+	if req.Content != "" {
+		if err := content.Scan(req.Content); err != nil {
+			return nil, fmt.Errorf("failed to scan content: %w", err)
+		}
+	}
+
 	blog, err := queries.UpdateBlogBySlug(ctx, db.UpdateBlogBySlugParams{
 		Slug:        slug,
 		Title:       req.Title,
@@ -225,6 +245,7 @@ func (b *BlogService) UpdateBlogBySlug(ctx context.Context, slug string, req Upd
 		Tags:        req.Tags,
 		Description: description,
 		IsPublished: pgtype.Bool{Bool: req.IsPublished, Valid: true},
+		Content:     content,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update blog: %w", err)
@@ -244,6 +265,7 @@ func (b *BlogService) convertBlogToInfo(blog db.Blog) *BlogInfo {
 		Duration:    blog.Duration,
 		Tags:        blog.Tags,
 		Description: blog.Description.String,
+		Content:     blog.Content.String,
 		IsPublished: blog.IsPublished.Bool,
 		CreatedAt:   blog.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   blog.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
@@ -251,7 +273,7 @@ func (b *BlogService) convertBlogToInfo(blog db.Blog) *BlogInfo {
 }
 
 // Helper function to convert individual fields to BlogInfo
-func (b *BlogService) convertBlogToInfoFromRow(id pgtype.UUID, title, slug string, date pgtype.Date, lang, duration string, tags []string, description pgtype.Text, isPublished pgtype.Bool, createdAt, updatedAt pgtype.Timestamptz) *BlogInfo {
+func (b *BlogService) convertBlogToInfoFromRow(id pgtype.UUID, title, slug string, date pgtype.Date, lang, duration string, tags []string, description, content pgtype.Text, isPublished pgtype.Bool, createdAt, updatedAt pgtype.Timestamptz) *BlogInfo {
 	return &BlogInfo{
 		ID:          uuid.UUID(id.Bytes).String(),
 		Title:       title,
@@ -261,6 +283,7 @@ func (b *BlogService) convertBlogToInfoFromRow(id pgtype.UUID, title, slug strin
 		Duration:    duration,
 		Tags:        tags,
 		Description: description.String,
+		Content:     content.String,
 		IsPublished: isPublished.Bool,
 		CreatedAt:   createdAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   updatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),

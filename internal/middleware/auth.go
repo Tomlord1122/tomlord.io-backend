@@ -250,6 +250,42 @@ func (a *AuthMiddleware) RequireSuperUserOrOwner() gin.HandlerFunc {
 	}
 }
 
+// RequireSuperUser middleware that requires super user privileges
+func (a *AuthMiddleware) RequireSuperUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// First check if user is authenticated
+		tokenString := a.extractToken(c)
+		if tokenString == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "No token provided"})
+			c.Abort()
+			return
+		}
+
+		claims, err := a.ValidateJWT(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		// Add user info to context
+		c.Set("user_id", claims.UserID)
+		c.Set("user_email", claims.Email)
+		c.Set("user_name", claims.Name)
+		c.Set("google_id", claims.GoogleID)
+
+		// Check if user is super user
+		if !a.IsSuperUser(c) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Super user privileges required"})
+			c.Abort()
+			return
+		}
+
+		c.Set("is_super_user", true)
+		c.Next()
+	}
+}
+
 // RequireSyncToken validates Authorization Bearer token signed with SYNC_SESSION_SECRET only.
 func RequireSyncToken() gin.HandlerFunc {
 	return func(c *gin.Context) {

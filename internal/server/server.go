@@ -21,6 +21,7 @@ type Server struct {
 	authService    *auth.AuthService
 	messageService *services.MessageService
 	blogService    *services.BlogService
+	pageService    *services.PageService
 	authMiddleware *middleware.AuthMiddleware
 	wsHub          *websocket.Hub
 }
@@ -38,6 +39,7 @@ func NewServer() (*http.Server, error) {
 	authService := auth.NewAuthService(dbService)
 	messageService := services.NewMessageService(dbService)
 	blogService := services.NewBlogService(dbService)
+	pageService := services.NewPageService(dbService)
 
 	// Initialize auth middleware with JWT secret
 	jwtSecret := viper.GetString("JWT_SECRET")
@@ -53,6 +55,7 @@ func NewServer() (*http.Server, error) {
 		authService:    authService,
 		messageService: messageService,
 		blogService:    blogService,
+		pageService:    pageService,
 		authMiddleware: authMiddleware,
 		wsHub:          wsHub,
 	}
