@@ -18,6 +18,7 @@ import (
 func (s *Server) RegisterRoutes() http.Handler {
 	r := gin.Default()
 
+
 	// CORS configuration - use the centralized SetupCORS function
 	r.Use(SetupCORS())
 
@@ -45,12 +46,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 		blogs := api.Group("/blogs")
 		{
 			// Public routes
-			blogs.GET("/", s.listBlogsHandler)
+			blogs.GET("", s.listBlogsHandler)
 			blogs.GET("/:slug", s.getBlogBySlugHandler)
 			blogs.GET("/:slug/messages", s.authMiddleware.OptionalAuth(), s.getMessagesByBlogSlugHandler)
 
 			// Protected routes (super user only)
-			blogs.POST("/", s.authMiddleware.RequireSuperUser(), s.createBlogHandler)
+			blogs.POST("", s.authMiddleware.RequireSuperUser(), s.createBlogHandler)
 			blogs.PUT("/:slug", s.authMiddleware.RequireSuperUser(), s.updateBlogHandler)
 			blogs.DELETE("/:slug", s.authMiddleware.RequireSuperUser(), s.deleteBlogHandler)
 		}
@@ -75,7 +76,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 			messages.GET("/blog/:slug", s.authMiddleware.OptionalAuth(), s.getMessagesByBlogSlugHandler)
 
 			// Protected routes
-			messages.POST("/", s.authMiddleware.RequireAuth(), s.createMessageHandler)
+			messages.POST("", s.authMiddleware.RequireAuth(), s.createMessageHandler)
 			messages.PUT("/:id", s.authMiddleware.RequireAuth(), s.updateMessageHandler)
 			messages.DELETE("/:id", s.authMiddleware.RequireSuperUserOrOwner(), s.deleteMessageHandler)
 			messages.POST("/:id/thumb", s.authMiddleware.RequireAuth(), s.toggleThumbHandler)
