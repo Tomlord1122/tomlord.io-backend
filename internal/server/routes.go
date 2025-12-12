@@ -52,6 +52,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 			// Protected routes (super user only)
 			blogs.POST("/", s.authMiddleware.RequireSuperUser(), s.createBlogHandler)
 			blogs.PUT("/:slug", s.authMiddleware.RequireSuperUser(), s.updateBlogHandler)
+			blogs.DELETE("/:slug", s.authMiddleware.RequireSuperUser(), s.deleteBlogHandler)
 		}
 
 		// Page routes (CMS)
@@ -408,6 +409,18 @@ func (s *Server) updateBlogHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"blog": blog})
+}
+
+func (s *Server) deleteBlogHandler(c *gin.Context) {
+	slug := c.Param("slug")
+
+	err := s.blogService.DeleteBlogBySlug(c.Request.Context(), slug)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete blog"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Blog deleted successfully"})
 }
 
 // Temporary sync handler for blog migration

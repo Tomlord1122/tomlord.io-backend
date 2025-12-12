@@ -51,7 +51,7 @@ WHERE is_published = true AND $1 = ANY(tags);
 
 
 -- name: GetBlogWithMessageCountBySlug :one
-SELECT 
+SELECT
     b.*,
     COALESCE(msg_count.count, 0) as message_count
 FROM blogs b
@@ -60,4 +60,8 @@ LEFT JOIN (
     FROM messages
     GROUP BY post_slug
 ) msg_count ON b.slug = msg_count.post_slug
-WHERE b.slug = $1; 
+WHERE b.slug = $1;
+
+-- name: DeleteBlogBySlug :exec
+DELETE FROM blogs
+WHERE slug = $1; 

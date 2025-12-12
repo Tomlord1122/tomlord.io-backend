@@ -18,6 +18,7 @@ type Querier interface {
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
 	CreateMessageThumb(ctx context.Context, arg CreateMessageThumbParams) (MessageThumb, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteBlogBySlug(ctx context.Context, slug string) error
 	DeleteMessage(ctx context.Context, arg DeleteMessageParams) error
 	DeleteMessageBySuperUser(ctx context.Context, id pgtype.UUID) error
 	DeleteMessageThumb(ctx context.Context, arg DeleteMessageThumbParams) error

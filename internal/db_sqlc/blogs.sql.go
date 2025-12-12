@@ -83,6 +83,16 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (Blog, e
 	return i, err
 }
 
+const deleteBlogBySlug = `-- name: DeleteBlogBySlug :exec
+DELETE FROM blogs
+WHERE slug = $1
+`
+
+func (q *Queries) DeleteBlogBySlug(ctx context.Context, slug string) error {
+	_, err := q.db.Exec(ctx, deleteBlogBySlug, slug)
+	return err
+}
+
 const getAllBlogs = `-- name: GetAllBlogs :many
 SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at, content FROM blogs
 ORDER BY date DESC
@@ -178,7 +188,7 @@ func (q *Queries) GetBlogBySlug(ctx context.Context, slug string) (Blog, error) 
 }
 
 const getBlogWithMessageCountBySlug = `-- name: GetBlogWithMessageCountBySlug :one
-SELECT 
+SELECT
     b.id, b.title, b.slug, b.date, b.lang, b.duration, b.tags, b.description, b.is_published, b.created_at, b.updated_at, b.content,
     COALESCE(msg_count.count, 0) as message_count
 FROM blogs b

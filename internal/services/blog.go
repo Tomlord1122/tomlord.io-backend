@@ -254,6 +254,18 @@ func (b *BlogService) UpdateBlogBySlug(ctx context.Context, slug string, req Upd
 	return b.convertBlogToInfo(blog), nil
 }
 
+// DeleteBlogBySlug deletes a blog by its slug
+func (b *BlogService) DeleteBlogBySlug(ctx context.Context, slug string) error {
+	queries := b.dbService.GetQueries()
+
+	err := queries.DeleteBlogBySlug(ctx, slug)
+	if err != nil {
+		return fmt.Errorf("failed to delete blog: %w", err)
+	}
+
+	return nil
+}
+
 // Helper function to convert db.Blog to BlogInfo
 func (b *BlogService) convertBlogToInfo(blog db.Blog) *BlogInfo {
 	return &BlogInfo{
