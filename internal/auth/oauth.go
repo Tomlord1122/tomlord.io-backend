@@ -69,9 +69,9 @@ func setupOAuthProviders() {
 	// Configure gothic to use our session store
 	gothic.Store = store
 
-	goth.UseProviders(
-		google.New(googleClientID, googleClientSecret, callbackURL, "email", "profile"),
-	)
+	googleProvider := google.New(googleClientID, googleClientSecret, callbackURL, "email", "profile")
+	googleProvider.SetPrompt("select_account")
+	goth.UseProviders(googleProvider)
 
 	log.Println("OAuth providers configured successfully")
 }
