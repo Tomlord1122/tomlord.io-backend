@@ -210,9 +210,20 @@ func (a *AuthMiddleware) IsSuperUser(c *gin.Context) bool {
 		return false
 	}
 
-	// TODO:[PRODUCTION] Add super user email to environment variables for production
-	superUserEmail := "r12944044@csie.ntu.edu.tw"
-	return email.(string) == superUserEmail
+	// Get super user emails from environment variable (comma-separated)
+	superUserEmails := viper.GetString("AUTH_SUPER_USER_EMAILS")
+	if superUserEmails == "" {
+		// Fallback to default
+		superUserEmails = "r12944044@csie.ntu.edu.tw"
+	}
+
+	userEmail := email.(string)
+	for _, superEmail := range strings.Split(superUserEmails, ",") {
+		if strings.TrimSpace(superEmail) == userEmail {
+			return true
+		}
+	}
+	return false
 }
 
 // RequireSuperUserOrOwner middleware that requires either super user privileges or ownership

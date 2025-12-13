@@ -179,7 +179,19 @@ func (s *Server) getMeHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"user": user})
+	// Check if user is super user and include in response
+	isSuperUser := s.authMiddleware.IsSuperUser(c)
+
+	c.JSON(http.StatusOK, gin.H{
+		"user": gin.H{
+			"id":            user.ID,
+			"google_id":     user.GoogleID,
+			"email":         user.Email,
+			"name":          user.Name,
+			"picture_url":   user.PictureURL,
+			"is_super_user": isSuperUser,
+		},
+	})
 }
 
 func (s *Server) createMessageHandler(c *gin.Context) {
