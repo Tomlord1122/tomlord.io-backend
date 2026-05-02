@@ -31,7 +31,6 @@ primary_region = 'sin'      # Singapore — closest to users
   auto_start_machines = false
 
   min_machines_running = 1      # Always keep 1 machine running (primary_region only)
-  max_machines_running = 1      # Force single instance to avoid WebSocket state splitting
 
   processes = ['app']
 
