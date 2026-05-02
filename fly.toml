@@ -4,23 +4,57 @@
 #
 
 app = 'tomlord-io-backend'
-primary_region = 'sin'
+primary_region = 'sin'      # Singapore — closest to users
 
 [build]
   dockerfile = "Dockerfile"
 
 [http_service]
   internal_port = 8080
-  force_https = true
-  # auto_stop_machines = 'stop'
-  auto_stop_machines = false
-  auto_start_machines = true
-  min_machines_running = 1 # 0 to disable auto-scaling
-  max_machines_running = 1 # Force single instance for WebSocket
+  force_https = true            # Enforce HTTP → HTTPS redirect
+
+  # ---- auto_stop / auto_start settings ----
+  # auto_stop_machines: "off" | "stop" | "suspend"
+  #   "off"     = Never stop machines on idle (good for persistent WebSocket)
+  #   "stop"    = Stop machines when idle (saves compute, but reconnect is slow)
+  #   "suspend" = Suspend machines when idle (faster wake-up than stop, with caveats)
+  #
+  # auto_start_machines: true | false
+  #   true  = Auto-start a machine when a request arrives and no machine is running
+  #   false = Do not auto-start (rely on manual start or deploy)
+  #
+  # Official recommendation: enable both or disable both together,
+  # to avoid machines that either never start or never stop.
+  # Here we disable both because WebSocket needs persistent connection
+  # and min_machines_running is set to 1.
+  auto_stop_machines = "off"
+  auto_start_machines = false
+
+  min_machines_running = 1      # Always keep 1 machine running (primary_region only)
+  max_machines_running = 1      # Force single instance to avoid WebSocket state splitting
+
   processes = ['app']
 
+# ---- restart policy (NOT the same as auto_stop / auto_start) ----
+# This controls what happens when the main process exits / crashes.
+#
+#   "no"          = Never auto-restart. Machine stays stopped on exit.
+#   "always"      = Always auto-restart, even on clean exit. Machine never enters stopped state.
+#                   Recommended for always-on apps (like this WebSocket server).
+#   "on-failure"  = Auto-restart only if process exits with non-zero code (up to 10 retries).
+#                   Default for fly deploy / fly launch, but machine can stay stopped on clean exit.
+#
+# For a persistent WebSocket backend, use "always" to guarantee the machine is
+# resurrected no matter why it stopped.
+[[restart]]
+  policy = "always"
+  retries = 10
+  processes = ["app"]
+
 [[vm]]
-  memory = '512mb' # or 1gb
+  # memory vs memory_mb:
+  #   memory     = Recommended by Fly. Supports units: "256mb", "1gb", "2GB" (default MB)
+  # 256mb is the cheapest config for shared-cpu-1x (~$2.43/mo in sin region).
+  memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 512 # or 1024
