@@ -69,6 +69,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 		// Temporary sync endpoint for initial blog migration (remove after sync)
 		api.POST("/sync-blogs", middleware.RequireSyncToken(), s.syncBlogsHandler)
 
+		// Link preview endpoint
+		api.GET("/preview", s.previewHandler)
+
 		// Message routes (comments)
 		messages := api.Group("/messages")
 		{
