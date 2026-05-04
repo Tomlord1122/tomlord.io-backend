@@ -7,12 +7,21 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"tomlord.io-backend/internal/cache"
 	"tomlord.io-backend/internal/database"
 	db "tomlord.io-backend/internal/db_sqlc"
 )
 
+const (
+	cacheKeyBlogSlugPrefix = "blog:slug:"
+	cacheKeyBlogsListPrefix = "blogs:list:"
+	cacheTTLBlog           = 10 * time.Minute
+	cacheTTLBlogsList      = 5 * time.Minute
+)
+
 type BlogService struct {
 	dbService database.DBService
+	cache     *cache.MemoryCache
 }
 
 type BlogInfo struct {
@@ -70,7 +79,13 @@ type ListBlogsRequest struct {
 func NewBlogService(dbService database.DBService) *BlogService {
 	return &BlogService{
 		dbService: dbService,
+		cache:     cache.GetInstance(),
 	}
+}
+
+// listCacheKey builds a cache key for list queries.
+func listCacheKey(tag, lang string, published bool, limit, offset int32) string {
+	return fmt.Sprintf("%s%s:%s:%v:%d:%d", cacheKeyBlogsListPrefix, tag, lang, published, limit, offset)
 }
 
 // CreateBlog creates a new blog entry
@@ -122,6 +137,9 @@ func (b *BlogService) CreateBlog(ctx context.Context, req CreateBlogRequest) (*B
 		return nil, fmt.Errorf("failed to create blog: %w", err)
 	}
 
+	// Invalidate list caches since a new blog was added
+	b.cache.DeletePrefix(cacheKeyBlogsListPrefix)
+
 	return b.convertBlogToInfo(blog), nil
 }
 
@@ -139,6 +157,13 @@ func (b *BlogService) GetBlogBySlug(ctx context.Context, slug string) (*BlogInfo
 
 // GetBlogWithMessageCountBySlug retrieves a blog with its message count
 func (b *BlogService) GetBlogWithMessageCountBySlug(ctx context.Context, slug string) (*BlogWithMessageCount, error) {
+	cacheKey := cacheKeyBlogSlugPrefix + slug
+	if cached, ok := b.cache.Get(cacheKey); ok {
+		if result, valid := cached.(*BlogWithMessageCount); valid {
+			return result, nil
+		}
+	}
+
 	queries := b.dbService.GetQueries()
 
 	result, err := queries.GetBlogWithMessageCountBySlug(ctx, slug)
@@ -146,22 +171,32 @@ func (b *BlogService) GetBlogWithMessageCountBySlug(ctx context.Context, slug st
 		return nil, fmt.Errorf("failed to get blog with message count: %w", err)
 	}
 
-	return &BlogWithMessageCount{
+	blog := &BlogWithMessageCount{
 		BlogInfo:     *b.convertBlogToInfoFromRow(result.ID, result.Title, result.Slug, result.Date, result.Lang, result.Duration, result.Tags, result.Description, result.Content, result.IsPublished, result.CreatedAt, result.UpdatedAt),
 		MessageCount: result.MessageCount,
-	}, nil
+	}
+
+	b.cache.Set(cacheKey, blog, cacheTTLBlog)
+	return blog, nil
 }
 
 // ListBlogs retrieves a list of blogs based on criteria
 func (b *BlogService) ListBlogs(ctx context.Context, req ListBlogsRequest) ([]BlogInfo, error) {
-	queries := b.dbService.GetQueries()
-
 	if req.Limit <= 0 {
 		req.Limit = 10000 // Default limit
 	}
 	if req.Offset < 0 {
 		req.Offset = 0
 	}
+
+	cacheKey := listCacheKey(req.Tag, req.Lang, req.PublishedOnly, req.Limit, req.Offset)
+	if cached, ok := b.cache.Get(cacheKey); ok {
+		if result, valid := cached.([]BlogInfo); valid {
+			return result, nil
+		}
+	}
+
+	queries := b.dbService.GetQueries()
 
 	var blogs []db.Blog
 	var err error
@@ -199,6 +234,7 @@ func (b *BlogService) ListBlogs(ctx context.Context, req ListBlogsRequest) ([]Bl
 		result[i] = *b.convertBlogToInfo(blog)
 	}
 
+	b.cache.Set(cacheKey, result, cacheTTLBlogsList)
 	return result, nil
 }
 
@@ -251,6 +287,10 @@ func (b *BlogService) UpdateBlogBySlug(ctx context.Context, slug string, req Upd
 		return nil, fmt.Errorf("failed to update blog: %w", err)
 	}
 
+	// Invalidate caches for this blog and all list caches
+	b.cache.Delete(cacheKeyBlogSlugPrefix + slug)
+	b.cache.DeletePrefix(cacheKeyBlogsListPrefix)
+
 	return b.convertBlogToInfo(blog), nil
 }
 
@@ -262,6 +302,10 @@ func (b *BlogService) DeleteBlogBySlug(ctx context.Context, slug string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete blog: %w", err)
 	}
+
+	// Invalidate caches for this blog and all list caches
+	b.cache.Delete(cacheKeyBlogSlugPrefix + slug)
+	b.cache.DeletePrefix(cacheKeyBlogsListPrefix)
 
 	return nil
 }

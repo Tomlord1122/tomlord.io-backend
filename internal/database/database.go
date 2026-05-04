@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/viper"
@@ -70,7 +71,18 @@ func NewDBService(ctx context.Context) (DBService, error) {
 
 	log.Printf("Connecting to database with SSL mode: %s", getSslModeFromConnStr(connStr))
 
-	pool, err := pgxpool.New(ctx, connStr)
+	poolCfg, err := pgxpool.ParseConfig(connStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse connection config: %w", err)
+	}
+
+	// Keep warm connections to reduce cold-start latency
+	poolCfg.MinConns = 2
+	poolCfg.MaxConnIdleTime = 10 * time.Minute
+	poolCfg.HealthCheckPeriod = 30 * time.Second
+	poolCfg.ConnConfig.ConnectTimeout = 5 * time.Second
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}

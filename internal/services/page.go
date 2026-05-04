@@ -3,14 +3,22 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"tomlord.io-backend/internal/cache"
 	"tomlord.io-backend/internal/database"
 	db "tomlord.io-backend/internal/db_sqlc"
 )
 
+const (
+	cacheKeyPagePrefix = "page:name:"
+	cacheTTLPage       = 10 * time.Minute
+)
+
 type PageService struct {
 	dbService database.DBService
+	cache     *cache.MemoryCache
 }
 
 type PageInfo struct {
@@ -35,11 +43,19 @@ type ListPagesRequest struct {
 func NewPageService(dbService database.DBService) *PageService {
 	return &PageService{
 		dbService: dbService,
+		cache:     cache.GetInstance(),
 	}
 }
 
 // GetPageByName retrieves a page by its name
 func (p *PageService) GetPageByName(ctx context.Context, name string) (*PageInfo, error) {
+	cacheKey := cacheKeyPagePrefix + name
+	if cached, ok := p.cache.Get(cacheKey); ok {
+		if result, valid := cached.(*PageInfo); valid {
+			return result, nil
+		}
+	}
+
 	queries := p.dbService.GetQueries()
 
 	page, err := queries.GetPageByName(ctx, name)
@@ -47,7 +63,9 @@ func (p *PageService) GetPageByName(ctx context.Context, name string) (*PageInfo
 		return nil, fmt.Errorf("failed to get page: %w", err)
 	}
 
-	return p.convertPageToInfo(page), nil
+	result := p.convertPageToInfo(page)
+	p.cache.Set(cacheKey, result, cacheTTLPage)
+	return result, nil
 }
 
 // UpsertPage creates or updates a page
@@ -61,6 +79,9 @@ func (p *PageService) UpsertPage(ctx context.Context, req UpsertPageRequest) (*P
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert page: %w", err)
 	}
+
+	// Invalidate cache for this page
+	p.cache.Delete(cacheKeyPagePrefix + req.Name)
 
 	return p.convertPageToInfo(page), nil
 }

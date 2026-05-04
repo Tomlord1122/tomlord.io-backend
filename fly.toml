@@ -47,7 +47,7 @@ primary_region = 'sin'      # Singapore — closest to users
 # resurrected no matter why it stopped.
 [[restart]]
   policy = "always"
-  retries = 10
+  retries = 20
   processes = ["app"]
 
 [[vm]]
