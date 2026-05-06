@@ -20,6 +20,7 @@ func SetupCORS() gin.HandlerFunc {
 		"Authorization",
 		"Content-Type",
 		"X-Requested-With",
+		"X-Visitor-Key",
 		"Origin",
 	}
 	config.ExposeHeaders = []string{"Content-Length"}

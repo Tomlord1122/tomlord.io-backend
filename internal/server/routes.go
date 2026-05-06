@@ -592,11 +592,13 @@ func (s *Server) getVisitorStatsHandler(c *gin.Context) {
 }
 
 func (s *Server) trackVisitorHandler(c *gin.Context) {
-	// Get client IP, handling proxies
-	clientIP := c.ClientIP()
-	userAgent := c.Request.UserAgent()
+	visitorKey := c.GetHeader("X-Visitor-Key")
+	if visitorKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing visitor key"})
+		return
+	}
 
-	stats, err := s.analyticsService.RecordVisit(c.Request.Context(), clientIP, userAgent)
+	stats, err := s.analyticsService.RecordVisit(c.Request.Context(), visitorKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record visit"})
 		return

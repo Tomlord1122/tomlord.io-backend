@@ -41,14 +41,14 @@ func NewAnalyticsService(dbService database.DBService) *AnalyticsService {
 	}
 }
 
-// RecordVisit checks if this visitor (identified by hash) has been counted today.
+// RecordVisit checks if this visitor (identified by a stable client key) has been counted today.
 // If not, it records the hash and increments the daily visit count.
-func (s *AnalyticsService) RecordVisit(ctx context.Context, ip string, userAgent string) (*VisitStats, error) {
+func (s *AnalyticsService) RecordVisit(ctx context.Context, visitorKey string) (*VisitStats, error) {
 	date := time.Now().UTC().Truncate(24 * time.Hour)
 	pgDate := pgtype.Date{Time: date, Valid: true}
 
-	// Create a hash of IP + User-Agent for deduplication
-	hash := s.hashVisitor(ip, userAgent)
+	// Store only a hash of the stable visitor key.
+	hash := s.hashVisitor(visitorKey)
 
 	var stats VisitStats
 	err := s.dbService.RunTransaction(ctx, func(q *db.Queries) error {
@@ -102,13 +102,7 @@ func (s *AnalyticsService) RecordVisit(ctx context.Context, ip string, userAgent
 			return fmt.Errorf("failed to get recent visit counts: %w", err)
 		}
 
-		stats.Recent = make([]DayStat, len(recent))
-		for i, r := range recent {
-			stats.Recent[i] = DayStat{
-				Date:       r.Date.Time.Format("2006-01-02"),
-				VisitCount: r.VisitCount,
-			}
-		}
+		stats.Recent = buildRecentDayStats(date, recent)
 
 		return nil
 	})
@@ -160,13 +154,7 @@ func (s *AnalyticsService) GetVisitorStats(ctx context.Context) (*VisitStats, er
 		return nil, fmt.Errorf("failed to get recent visit counts: %w", err)
 	}
 
-	stats.Recent = make([]DayStat, len(recent))
-	for i, r := range recent {
-		stats.Recent[i] = DayStat{
-			Date:       r.Date.Time.Format("2006-01-02"),
-			VisitCount: r.VisitCount,
-		}
-	}
+	stats.Recent = buildRecentDayStats(date, recent)
 
 	// Cache the result
 	s.cache.Set(cacheKeyVisitorStats, &stats, cacheTTLVisitorStats)
@@ -174,8 +162,27 @@ func (s *AnalyticsService) GetVisitorStats(ctx context.Context) (*VisitStats, er
 	return &stats, nil
 }
 
-func (s *AnalyticsService) hashVisitor(ip string, userAgent string) string {
+func (s *AnalyticsService) hashVisitor(visitorKey string) string {
 	h := sha256.New()
-	h.Write([]byte(ip + "|" + userAgent))
+	h.Write([]byte(visitorKey))
 	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func buildRecentDayStats(today time.Time, rows []db.DailyVisit) []DayStat {
+	countsByDate := make(map[string]int32, len(rows))
+	for _, row := range rows {
+		countsByDate[row.Date.Time.Format("2006-01-02")] = row.VisitCount
+	}
+
+	stats := make([]DayStat, 7)
+	for i := 0; i < 7; i++ {
+		day := today.AddDate(0, 0, -i)
+		date := day.Format("2006-01-02")
+		stats[i] = DayStat{
+			Date:       date,
+			VisitCount: countsByDate[date],
+		}
+	}
+
+	return stats
 }
