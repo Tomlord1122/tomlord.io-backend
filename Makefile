@@ -7,16 +7,6 @@ endif
 # Container names for Docker operations
 DB_CONTAINER_NAME=psql_bp
 
-# Database URL for migrations (using environment variables)
-# For local development (Docker)
-DB_URL_LOCAL=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@localhost:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=disable
-
-# For production (Supabase)
-DB_URL_PROD=postgresql://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@${BLUEPRINT_DB_HOST}:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=require
-
-# Use production URL if APP_ENV is production, otherwise use local
-DB_URL=$(if $(filter production,$(APP_ENV)),$(DB_URL_PROD),$(DB_URL_LOCAL))
-
 # Build the application
 all: build test
 
@@ -60,28 +50,33 @@ docker-down:
 		docker-compose down; \
 	fi
 
-# Run all migrations up
+# Create a new Supabase migration
+migration:
+	@test -n "$(name)" || (echo "Usage: make migration name=create_table_name" && exit 1)
+	supabase migration new $(name)
+
+# Run all pending migrations against the linked Supabase project
 migrateup:
-	@echo "Running migrations with DB_URL: $(DB_URL)"
-	migrate -path ./sqlc/migrations -database "$(DB_URL)" -verbose up
+	supabase db push
 
-# Run single migration up
+# Run all pending migrations against local Supabase
 migrateup1:
-	@echo "Running single migration with DB_URL: $(DB_URL)"
-	migrate -path ./sqlc/migrations -database "$(DB_URL)" -verbose up 1
+	@echo "Supabase CLI does not support pushing exactly one migration. Use 'make migrateup' after creating one migration."
 
-# Run all migrations down
+# Reset local Supabase database and replay migrations
 migratedown:
-	@echo "Rolling back migrations with DB_URL: $(DB_URL)"
-	migrate -path ./sqlc/migrations -database "$(DB_URL)" -verbose down
+	supabase db reset
 
-# Run single migration down  
+# Show Supabase migration status
 migratedown1:
-	@echo "Rolling back single migration with DB_URL: $(DB_URL)"
-	migrate -path ./sqlc/migrations -database "$(DB_URL)" -verbose down 1
+	@echo "Supabase CLI does not support remote down migrations. Create a forward migration instead."
 
-# Setup: Start services and run migrations
-setup: docker-up wait-for-db migrateup
+# Show local/remote migration history
+migration-list:
+	supabase migration list
+
+# Setup: Start services and run local Supabase migrations
+setup: docker-up wait-for-db
 	@echo "Backend services are ready!"
 
 # Wait for database to be ready
@@ -123,4 +118,4 @@ watch:
             fi; \
         fi
 
-.PHONY: all build run test watch docker-up docker-run docker-down migrateup migratedown migrateup1 migratedown1 sqlc setup wait-for-db
+.PHONY: all build run test watch docker-up docker-run docker-down migration migrateup migratedown migrateup1 migratedown1 migration-list sqlc setup wait-for-db

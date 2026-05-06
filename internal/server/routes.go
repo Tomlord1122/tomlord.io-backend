@@ -72,6 +72,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 		// Link preview endpoint
 		api.GET("/preview", s.previewHandler)
 
+		// Visitor analytics endpoints
+		api.GET("/visitors", s.getVisitorStatsHandler)
+		api.POST("/visitors/track", s.trackVisitorHandler)
+
 		// Message routes (comments)
 		messages := api.Group("/messages")
 		{
@@ -570,4 +574,38 @@ func (s *Server) updatePageHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"page": page})
+}
+
+// Visitor analytics handlers
+func (s *Server) getVisitorStatsHandler(c *gin.Context) {
+	stats, err := s.analyticsService.GetVisitorStats(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get visitor stats"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"today_count": stats.TodayCount,
+		"total_count": stats.TotalCount,
+		"recent":      stats.Recent,
+	})
+}
+
+func (s *Server) trackVisitorHandler(c *gin.Context) {
+	// Get client IP, handling proxies
+	clientIP := c.ClientIP()
+	userAgent := c.Request.UserAgent()
+
+	stats, err := s.analyticsService.RecordVisit(c.Request.Context(), clientIP, userAgent)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record visit"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"today_count": stats.TodayCount,
+		"total_count": stats.TotalCount,
+		"is_new_visit": stats.IsNewVisit,
+		"recent":       stats.Recent,
+	})
 }

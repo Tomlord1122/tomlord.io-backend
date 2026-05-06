@@ -16,15 +16,16 @@ import (
 )
 
 type Server struct {
-	port            int
-	dbService       database.DBService
-	authService     *auth.AuthService
-	messageService  *services.MessageService
-	blogService     *services.BlogService
-	pageService     *services.PageService
-	previewService  *services.PreviewService
-	authMiddleware  *middleware.AuthMiddleware
-	wsHub           *websocket.Hub
+	port             int
+	dbService        database.DBService
+	authService      *auth.AuthService
+	messageService   *services.MessageService
+	blogService      *services.BlogService
+	pageService      *services.PageService
+	previewService   *services.PreviewService
+	analyticsService *services.AnalyticsService
+	authMiddleware   *middleware.AuthMiddleware
+	wsHub            *websocket.Hub
 }
 
 func NewServer() (*http.Server, error) {
@@ -42,6 +43,7 @@ func NewServer() (*http.Server, error) {
 	blogService := services.NewBlogService(dbService)
 	pageService := services.NewPageService(dbService)
 	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService(dbService)
 
 	// Initialize auth middleware with JWT secret
 	jwtSecret := viper.GetString("JWT_SECRET")
@@ -52,15 +54,16 @@ func NewServer() (*http.Server, error) {
 	go wsHub.Run()
 
 	NewServer := &Server{
-		port:           port,
-		dbService:      dbService,
-		authService:    authService,
-		messageService: messageService,
-		blogService:    blogService,
-		pageService:    pageService,
-		previewService: previewService,
-		authMiddleware: authMiddleware,
-		wsHub:          wsHub,
+		port:             port,
+		dbService:        dbService,
+		authService:      authService,
+		messageService:   messageService,
+		blogService:      blogService,
+		pageService:      pageService,
+		previewService:   previewService,
+		analyticsService: analyticsService,
+		authMiddleware:   authMiddleware,
+		wsHub:            wsHub,
 	}
 
 	// Declare Server config
