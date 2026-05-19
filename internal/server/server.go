@@ -75,6 +75,10 @@ func NewServer() (*http.Server, error) {
 		WriteTimeout: 30 * time.Second,
 	}
 
+	prewarmCtx, stopPrewarmer := context.WithCancel(context.Background())
+	server.RegisterOnShutdown(stopPrewarmer)
+	NewServer.startISRPrewarmer(prewarmCtx)
+
 	return server, nil
 }
 

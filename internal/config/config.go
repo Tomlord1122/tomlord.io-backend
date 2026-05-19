@@ -32,4 +32,11 @@ func Load() {
 	viper.SetDefault("BLUEPRINT_DB_SCHEMA", "public")
 	viper.SetDefault("ALLOWED_ORIGINS", "http://localhost:5173")
 	viper.SetDefault("SYNC_SESSION_SECRET", "your-sync-session-secret-change-in-production")
+	viper.SetDefault("PREWARM_ENABLED", false)
+	viper.SetDefault("PREWARM_FRONTEND_URL", "")
+	viper.SetDefault("PREWARM_TOKEN", "")
+	viper.SetDefault("PREWARM_STATIC_INTERVAL", "10m")
+	viper.SetDefault("PREWARM_BLOG_INTERVAL", "1h")
+	viper.SetDefault("PREWARM_REQUEST_JITTER", "5s")
+	viper.SetDefault("PREWARM_MAX_BLOGS", 50)
 }
