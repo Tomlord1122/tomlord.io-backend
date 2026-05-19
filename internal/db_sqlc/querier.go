@@ -15,7 +15,7 @@ type Querier interface {
 	CheckVisitorHash(ctx context.Context, arg CheckVisitorHashParams) (bool, error)
 	CountBlogs(ctx context.Context) (int64, error)
 	CountBlogsByTag(ctx context.Context, tags []string) (int64, error)
-	CreateBlog(ctx context.Context, arg CreateBlogParams) (Blog, error)
+	CreateBlog(ctx context.Context, arg CreateBlogParams) (CreateBlogRow, error)
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
 	CreateMessageThumb(ctx context.Context, arg CreateMessageThumbParams) (MessageThumb, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
@@ -24,13 +24,13 @@ type Querier interface {
 	DeleteMessageBySuperUser(ctx context.Context, id pgtype.UUID) error
 	DeleteMessageThumb(ctx context.Context, arg DeleteMessageThumbParams) error
 	DeletePageByName(ctx context.Context, name string) error
-	GetAllBlogs(ctx context.Context, arg GetAllBlogsParams) ([]Blog, error)
+	GetAllBlogs(ctx context.Context, arg GetAllBlogsParams) ([]GetAllBlogsRow, error)
 	GetBlogByID(ctx context.Context, id pgtype.UUID) (Blog, error)
 	GetBlogBySlug(ctx context.Context, slug string) (Blog, error)
 	GetBlogWithMessageCountBySlug(ctx context.Context, slug string) (GetBlogWithMessageCountBySlugRow, error)
-	GetBlogs(ctx context.Context, arg GetBlogsParams) ([]Blog, error)
-	GetBlogsByLang(ctx context.Context, arg GetBlogsByLangParams) ([]Blog, error)
-	GetBlogsByTag(ctx context.Context, arg GetBlogsByTagParams) ([]Blog, error)
+	GetBlogs(ctx context.Context, arg GetBlogsParams) ([]GetBlogsRow, error)
+	GetBlogsByLang(ctx context.Context, arg GetBlogsByLangParams) ([]GetBlogsByLangRow, error)
+	GetBlogsByTag(ctx context.Context, arg GetBlogsByTagParams) ([]GetBlogsByTagRow, error)
 	GetMessageByID(ctx context.Context, id pgtype.UUID) (GetMessageByIDRow, error)
 	// Note: blog slug now maps to post_slug directly
 	GetMessagesByBlogSlug(ctx context.Context, arg GetMessagesByBlogSlugParams) ([]GetMessagesByBlogSlugRow, error)
@@ -43,7 +43,7 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	InsertVisitorHash(ctx context.Context, arg InsertVisitorHashParams) error
 	ListPages(ctx context.Context, arg ListPagesParams) ([]Page, error)
-	UpdateBlogBySlug(ctx context.Context, arg UpdateBlogBySlugParams) (Blog, error)
+	UpdateBlogBySlug(ctx context.Context, arg UpdateBlogBySlugParams) (UpdateBlogBySlugRow, error)
 	UpdateMessage(ctx context.Context, arg UpdateMessageParams) (Message, error)
 	UpdateMessageThumbCount(ctx context.Context, messageID pgtype.UUID) error
 	UpdateUserByGoogleID(ctx context.Context, arg UpdateUserByGoogleIDParams) (User, error)

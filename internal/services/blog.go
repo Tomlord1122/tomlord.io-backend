@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	cacheKeyBlogSlugPrefix = "blog:slug:"
+	cacheKeyBlogSlugPrefix  = "blog:slug:"
 	cacheKeyBlogsListPrefix = "blogs:list:"
-	cacheTTLBlog           = 10 * time.Minute
-	cacheTTLBlogsList      = 5 * time.Minute
+	cacheTTLBlog            = 10 * time.Minute
+	cacheTTLBlogsList       = 5 * time.Minute
 )
 
 type BlogService struct {
@@ -140,7 +140,7 @@ func (b *BlogService) CreateBlog(ctx context.Context, req CreateBlogRequest) (*B
 	// Invalidate list caches since a new blog was added
 	b.cache.DeletePrefix(cacheKeyBlogsListPrefix)
 
-	return b.convertBlogToInfo(blog), nil
+	return b.convertBlogMetadataToInfoFromRow(blog.ID, blog.Title, blog.Slug, blog.Date, blog.Lang, blog.Duration, blog.Tags, blog.Description, blog.IsPublished, blog.CreatedAt, blog.UpdatedAt), nil
 }
 
 // GetBlogBySlug retrieves a blog by its slug
@@ -198,40 +198,58 @@ func (b *BlogService) ListBlogs(ctx context.Context, req ListBlogsRequest) ([]Bl
 
 	queries := b.dbService.GetQueries()
 
-	var blogs []db.Blog
-	var err error
+	var result []BlogInfo
 
 	if req.Tag != "" {
-		blogs, err = queries.GetBlogsByTag(ctx, db.GetBlogsByTagParams{
+		blogs, err := queries.GetBlogsByTag(ctx, db.GetBlogsByTagParams{
 			Tags:   []string{req.Tag},
 			Limit:  req.Limit,
 			Offset: req.Offset,
 		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get blogs: %w", err)
+		}
+		result = make([]BlogInfo, len(blogs))
+		for i, blog := range blogs {
+			result[i] = *b.convertBlogMetadataToInfoFromRow(blog.ID, blog.Title, blog.Slug, blog.Date, blog.Lang, blog.Duration, blog.Tags, blog.Description, blog.IsPublished, blog.CreatedAt, blog.UpdatedAt)
+		}
 	} else if req.Lang != "" {
-		blogs, err = queries.GetBlogsByLang(ctx, db.GetBlogsByLangParams{
+		blogs, err := queries.GetBlogsByLang(ctx, db.GetBlogsByLangParams{
 			Lang:   req.Lang,
 			Limit:  req.Limit,
 			Offset: req.Offset,
 		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get blogs: %w", err)
+		}
+		result = make([]BlogInfo, len(blogs))
+		for i, blog := range blogs {
+			result[i] = *b.convertBlogMetadataToInfoFromRow(blog.ID, blog.Title, blog.Slug, blog.Date, blog.Lang, blog.Duration, blog.Tags, blog.Description, blog.IsPublished, blog.CreatedAt, blog.UpdatedAt)
+		}
 	} else if req.PublishedOnly {
-		blogs, err = queries.GetBlogs(ctx, db.GetBlogsParams{
+		blogs, err := queries.GetBlogs(ctx, db.GetBlogsParams{
 			Limit:  req.Limit,
 			Offset: req.Offset,
 		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get blogs: %w", err)
+		}
+		result = make([]BlogInfo, len(blogs))
+		for i, blog := range blogs {
+			result[i] = *b.convertBlogMetadataToInfoFromRow(blog.ID, blog.Title, blog.Slug, blog.Date, blog.Lang, blog.Duration, blog.Tags, blog.Description, blog.IsPublished, blog.CreatedAt, blog.UpdatedAt)
+		}
 	} else {
-		blogs, err = queries.GetAllBlogs(ctx, db.GetAllBlogsParams{
+		blogs, err := queries.GetAllBlogs(ctx, db.GetAllBlogsParams{
 			Limit:  req.Limit,
 			Offset: req.Offset,
 		})
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get blogs: %w", err)
-	}
-
-	result := make([]BlogInfo, len(blogs))
-	for i, blog := range blogs {
-		result[i] = *b.convertBlogToInfo(blog)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get blogs: %w", err)
+		}
+		result = make([]BlogInfo, len(blogs))
+		for i, blog := range blogs {
+			result[i] = *b.convertBlogMetadataToInfoFromRow(blog.ID, blog.Title, blog.Slug, blog.Date, blog.Lang, blog.Duration, blog.Tags, blog.Description, blog.IsPublished, blog.CreatedAt, blog.UpdatedAt)
+		}
 	}
 
 	b.cache.Set(cacheKey, result, cacheTTLBlogsList)
@@ -291,7 +309,7 @@ func (b *BlogService) UpdateBlogBySlug(ctx context.Context, slug string, req Upd
 	b.cache.Delete(cacheKeyBlogSlugPrefix + slug)
 	b.cache.DeletePrefix(cacheKeyBlogsListPrefix)
 
-	return b.convertBlogToInfo(blog), nil
+	return b.convertBlogMetadataToInfoFromRow(blog.ID, blog.Title, blog.Slug, blog.Date, blog.Lang, blog.Duration, blog.Tags, blog.Description, blog.IsPublished, blog.CreatedAt, blog.UpdatedAt), nil
 }
 
 // DeleteBlogBySlug deletes a blog by its slug
@@ -325,6 +343,22 @@ func (b *BlogService) convertBlogToInfo(blog db.Blog) *BlogInfo {
 		IsPublished: blog.IsPublished.Bool,
 		CreatedAt:   blog.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   blog.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}
+
+func (b *BlogService) convertBlogMetadataToInfoFromRow(id pgtype.UUID, title, slug string, date pgtype.Date, lang, duration string, tags []string, description pgtype.Text, isPublished pgtype.Bool, createdAt, updatedAt pgtype.Timestamptz) *BlogInfo {
+	return &BlogInfo{
+		ID:          uuid.UUID(id.Bytes).String(),
+		Title:       title,
+		Slug:        slug,
+		Date:        date.Time.Format("2006-01-02"),
+		Lang:        lang,
+		Duration:    duration,
+		Tags:        tags,
+		Description: description.String,
+		IsPublished: isPublished.Bool,
+		CreatedAt:   createdAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:   updatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 

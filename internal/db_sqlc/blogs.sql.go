@@ -38,7 +38,7 @@ func (q *Queries) CountBlogsByTag(ctx context.Context, tags []string) (int64, er
 const createBlog = `-- name: CreateBlog :one
 INSERT INTO blogs (title, slug, date, lang, duration, tags, description, is_published, content)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at, content
+RETURNING id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at
 `
 
 type CreateBlogParams struct {
@@ -53,7 +53,21 @@ type CreateBlogParams struct {
 	Content     pgtype.Text `json:"content"`
 }
 
-func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (Blog, error) {
+type CreateBlogRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Date        pgtype.Date        `json:"date"`
+	Lang        string             `json:"lang"`
+	Duration    string             `json:"duration"`
+	Tags        []string           `json:"tags"`
+	Description pgtype.Text        `json:"description"`
+	IsPublished pgtype.Bool        `json:"is_published"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (CreateBlogRow, error) {
 	row := q.db.QueryRow(ctx, createBlog,
 		arg.Title,
 		arg.Slug,
@@ -65,7 +79,7 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (Blog, e
 		arg.IsPublished,
 		arg.Content,
 	)
-	var i Blog
+	var i CreateBlogRow
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -78,7 +92,6 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (Blog, e
 		&i.IsPublished,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Content,
 	)
 	return i, err
 }
@@ -94,7 +107,7 @@ func (q *Queries) DeleteBlogBySlug(ctx context.Context, slug string) error {
 }
 
 const getAllBlogs = `-- name: GetAllBlogs :many
-SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at, content FROM blogs
+SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at FROM blogs
 ORDER BY date DESC
 LIMIT $1 OFFSET $2
 `
@@ -104,15 +117,29 @@ type GetAllBlogsParams struct {
 	Offset int32 `json:"offset"`
 }
 
-func (q *Queries) GetAllBlogs(ctx context.Context, arg GetAllBlogsParams) ([]Blog, error) {
+type GetAllBlogsRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Date        pgtype.Date        `json:"date"`
+	Lang        string             `json:"lang"`
+	Duration    string             `json:"duration"`
+	Tags        []string           `json:"tags"`
+	Description pgtype.Text        `json:"description"`
+	IsPublished pgtype.Bool        `json:"is_published"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetAllBlogs(ctx context.Context, arg GetAllBlogsParams) ([]GetAllBlogsRow, error) {
 	rows, err := q.db.Query(ctx, getAllBlogs, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Blog{}
+	items := []GetAllBlogsRow{}
 	for rows.Next() {
-		var i Blog
+		var i GetAllBlogsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -125,7 +152,6 @@ func (q *Queries) GetAllBlogs(ctx context.Context, arg GetAllBlogsParams) ([]Blo
 			&i.IsPublished,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Content,
 		); err != nil {
 			return nil, err
 		}
@@ -238,7 +264,7 @@ func (q *Queries) GetBlogWithMessageCountBySlug(ctx context.Context, slug string
 }
 
 const getBlogs = `-- name: GetBlogs :many
-SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at, content FROM blogs
+SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at FROM blogs
 WHERE is_published = true
 ORDER BY date DESC
 LIMIT $1 OFFSET $2
@@ -249,15 +275,29 @@ type GetBlogsParams struct {
 	Offset int32 `json:"offset"`
 }
 
-func (q *Queries) GetBlogs(ctx context.Context, arg GetBlogsParams) ([]Blog, error) {
+type GetBlogsRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Date        pgtype.Date        `json:"date"`
+	Lang        string             `json:"lang"`
+	Duration    string             `json:"duration"`
+	Tags        []string           `json:"tags"`
+	Description pgtype.Text        `json:"description"`
+	IsPublished pgtype.Bool        `json:"is_published"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetBlogs(ctx context.Context, arg GetBlogsParams) ([]GetBlogsRow, error) {
 	rows, err := q.db.Query(ctx, getBlogs, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Blog{}
+	items := []GetBlogsRow{}
 	for rows.Next() {
-		var i Blog
+		var i GetBlogsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -270,7 +310,6 @@ func (q *Queries) GetBlogs(ctx context.Context, arg GetBlogsParams) ([]Blog, err
 			&i.IsPublished,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Content,
 		); err != nil {
 			return nil, err
 		}
@@ -283,7 +322,7 @@ func (q *Queries) GetBlogs(ctx context.Context, arg GetBlogsParams) ([]Blog, err
 }
 
 const getBlogsByLang = `-- name: GetBlogsByLang :many
-SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at, content FROM blogs
+SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at FROM blogs
 WHERE is_published = true AND lang = $1
 ORDER BY date DESC
 LIMIT $2 OFFSET $3
@@ -295,15 +334,29 @@ type GetBlogsByLangParams struct {
 	Offset int32  `json:"offset"`
 }
 
-func (q *Queries) GetBlogsByLang(ctx context.Context, arg GetBlogsByLangParams) ([]Blog, error) {
+type GetBlogsByLangRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Date        pgtype.Date        `json:"date"`
+	Lang        string             `json:"lang"`
+	Duration    string             `json:"duration"`
+	Tags        []string           `json:"tags"`
+	Description pgtype.Text        `json:"description"`
+	IsPublished pgtype.Bool        `json:"is_published"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetBlogsByLang(ctx context.Context, arg GetBlogsByLangParams) ([]GetBlogsByLangRow, error) {
 	rows, err := q.db.Query(ctx, getBlogsByLang, arg.Lang, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Blog{}
+	items := []GetBlogsByLangRow{}
 	for rows.Next() {
-		var i Blog
+		var i GetBlogsByLangRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -316,7 +369,6 @@ func (q *Queries) GetBlogsByLang(ctx context.Context, arg GetBlogsByLangParams) 
 			&i.IsPublished,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Content,
 		); err != nil {
 			return nil, err
 		}
@@ -329,7 +381,7 @@ func (q *Queries) GetBlogsByLang(ctx context.Context, arg GetBlogsByLangParams) 
 }
 
 const getBlogsByTag = `-- name: GetBlogsByTag :many
-SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at, content FROM blogs
+SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at FROM blogs
 WHERE is_published = true AND $1 = ANY(tags)
 ORDER BY date DESC
 LIMIT $2 OFFSET $3
@@ -341,15 +393,29 @@ type GetBlogsByTagParams struct {
 	Offset int32    `json:"offset"`
 }
 
-func (q *Queries) GetBlogsByTag(ctx context.Context, arg GetBlogsByTagParams) ([]Blog, error) {
+type GetBlogsByTagRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Date        pgtype.Date        `json:"date"`
+	Lang        string             `json:"lang"`
+	Duration    string             `json:"duration"`
+	Tags        []string           `json:"tags"`
+	Description pgtype.Text        `json:"description"`
+	IsPublished pgtype.Bool        `json:"is_published"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetBlogsByTag(ctx context.Context, arg GetBlogsByTagParams) ([]GetBlogsByTagRow, error) {
 	rows, err := q.db.Query(ctx, getBlogsByTag, arg.Tags, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Blog{}
+	items := []GetBlogsByTagRow{}
 	for rows.Next() {
-		var i Blog
+		var i GetBlogsByTagRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -362,7 +428,6 @@ func (q *Queries) GetBlogsByTag(ctx context.Context, arg GetBlogsByTagParams) ([
 			&i.IsPublished,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Content,
 		); err != nil {
 			return nil, err
 		}
@@ -378,7 +443,7 @@ const updateBlogBySlug = `-- name: UpdateBlogBySlug :one
 UPDATE blogs
 SET title = $2, date = $3, lang = $4, duration = $5, tags = $6, description = $7, is_published = $8, content = $9, updated_at = NOW()
 WHERE slug = $1
-RETURNING id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at, content
+RETURNING id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at
 `
 
 type UpdateBlogBySlugParams struct {
@@ -393,7 +458,21 @@ type UpdateBlogBySlugParams struct {
 	Content     pgtype.Text `json:"content"`
 }
 
-func (q *Queries) UpdateBlogBySlug(ctx context.Context, arg UpdateBlogBySlugParams) (Blog, error) {
+type UpdateBlogBySlugRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	Title       string             `json:"title"`
+	Slug        string             `json:"slug"`
+	Date        pgtype.Date        `json:"date"`
+	Lang        string             `json:"lang"`
+	Duration    string             `json:"duration"`
+	Tags        []string           `json:"tags"`
+	Description pgtype.Text        `json:"description"`
+	IsPublished pgtype.Bool        `json:"is_published"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) UpdateBlogBySlug(ctx context.Context, arg UpdateBlogBySlugParams) (UpdateBlogBySlugRow, error) {
 	row := q.db.QueryRow(ctx, updateBlogBySlug,
 		arg.Slug,
 		arg.Title,
@@ -405,7 +484,7 @@ func (q *Queries) UpdateBlogBySlug(ctx context.Context, arg UpdateBlogBySlugPara
 		arg.IsPublished,
 		arg.Content,
 	)
-	var i Blog
+	var i UpdateBlogBySlugRow
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -418,7 +497,6 @@ func (q *Queries) UpdateBlogBySlug(ctx context.Context, arg UpdateBlogBySlugPara
 		&i.IsPublished,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Content,
 	)
 	return i, err
 }
