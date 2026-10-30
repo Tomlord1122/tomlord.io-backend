@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"tomlord.io-backend/internal/cache"
 	"tomlord.io-backend/internal/database"
 	db "tomlord.io-backend/internal/db_sqlc"
 )
@@ -20,6 +21,11 @@ const (
 	threadDefaultLimit = int32(20)
 	threadMaxLimit     = int32(50)
 	threadMaxRunes     = 2000
+
+	cacheKeyThreadIDPrefix    = "thread:id:"
+	cacheKeyThreadsListPrefix = "threads:list:"
+	cacheTTLThread            = 10 * time.Minute
+	cacheTTLThreadsList       = 5 * time.Minute
 )
 
 var (
@@ -30,6 +36,7 @@ var (
 
 type ThreadService struct {
 	dbService database.DBService
+	cache     *cache.MemoryCache
 }
 
 type ThreadInfo struct {
@@ -59,7 +66,7 @@ type ListThreadsRequest struct {
 }
 
 func NewThreadService(dbService database.DBService) *ThreadService {
-	return &ThreadService{dbService: dbService}
+	return &ThreadService{dbService: dbService, cache: cache.GetInstance()}
 }
 
 func (t *ThreadService) CreateThread(ctx context.Context, req CreateThreadRequest) (*ThreadInfo, error) {
@@ -73,6 +80,7 @@ func (t *ThreadService) CreateThread(ctx context.Context, req CreateThreadReques
 		return nil, fmt.Errorf("failed to create thread: %w", err)
 	}
 	info := threadFromRow(row)
+	t.invalidateThreads()
 	return &info, nil
 }
 
@@ -80,6 +88,12 @@ func (t *ThreadService) GetThread(ctx context.Context, id string) (*ThreadInfo, 
 	threadID, err := parseThreadID(id)
 	if err != nil {
 		return nil, err
+	}
+
+	cacheKey := cacheKeyThreadIDPrefix + id
+	if cached, ok := t.cache.Get(cacheKey); ok {
+		info := cached.(ThreadInfo)
+		return &info, nil
 	}
 
 	row, err := t.dbService.GetQueries().GetThreadByID(ctx, threadID)
@@ -90,6 +104,7 @@ func (t *ThreadService) GetThread(ctx context.Context, id string) (*ThreadInfo, 
 		return nil, fmt.Errorf("failed to get thread: %w", err)
 	}
 	info := threadFromRow(row)
+	t.cache.Set(cacheKey, info, cacheTTLThread)
 	return &info, nil
 }
 
@@ -100,6 +115,12 @@ func (t *ThreadService) ListThreads(ctx context.Context, req ListThreadsRequest)
 	}
 	if limit > threadMaxLimit {
 		limit = threadMaxLimit
+	}
+
+	cacheKey := fmt.Sprintf("%s%d:%s", cacheKeyThreadsListPrefix, limit, req.Cursor)
+	if cached, ok := t.cache.Get(cacheKey); ok {
+		page := cached.(ThreadPage)
+		return &page, nil
 	}
 
 	params := db.ListThreadsParams{Limit: limit + 1}
@@ -132,6 +153,7 @@ func (t *ThreadService) ListThreads(ctx context.Context, req ListThreadsRequest)
 		last := rows[len(rows)-1]
 		page.NextCursor = encodeThreadCursor(last.CreatedAt.Time.UTC(), uuid.UUID(last.ID.Bytes))
 	}
+	t.cache.Set(cacheKey, *page, cacheTTLThreadsList)
 	return page, nil
 }
 
@@ -156,6 +178,7 @@ func (t *ThreadService) UpdateThread(ctx context.Context, id string, req UpdateT
 		return nil, fmt.Errorf("failed to update thread: %w", err)
 	}
 	info := threadFromRow(row)
+	t.invalidateThreads()
 	return &info, nil
 }
 
@@ -167,7 +190,13 @@ func (t *ThreadService) DeleteThread(ctx context.Context, id string) error {
 	if err := t.dbService.GetQueries().DeleteThread(ctx, threadID); err != nil {
 		return fmt.Errorf("failed to delete thread: %w", err)
 	}
+	t.invalidateThreads()
 	return nil
+}
+
+func (t *ThreadService) invalidateThreads() {
+	t.cache.DeletePrefix(cacheKeyThreadIDPrefix)
+	t.cache.DeletePrefix(cacheKeyThreadsListPrefix)
 }
 
 func normalizeThreadContent(content string) (string, error) {

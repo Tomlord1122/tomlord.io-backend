@@ -127,7 +127,7 @@ add new cached values.
 | `page:name:`        | 10 min | PageService    |
 | `preview:url:`      | 1 hour | PreviewService |
 
-Threads are not cached. `GET /api/threads` is cursor-paginated and must not serve a stale first page after a write.
+Thread reads use the same in-memory cache as blogs. Writes delete both `thread:id:` and `threads:list:` so a new post is not stuck behind a cached first page.
 
 ## Auth quick reference
 
