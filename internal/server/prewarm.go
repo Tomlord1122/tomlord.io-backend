@@ -105,9 +105,8 @@ func (s *Server) prewarmBlogISRPaths(ctx context.Context, client *http.Client, c
 	defer cancel()
 
 	blogs, err := s.blogService.ListBlogs(listCtx, services.ListBlogsRequest{
-		Limit:         cfg.maxBlogs,
-		Offset:        0,
-		PublishedOnly: true,
+		Limit:  cfg.maxBlogs,
+		Offset: 0,
 	})
 	if err != nil {
 		log.Printf("ISR prewarm failed to list blogs: %v", err)

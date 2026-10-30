@@ -127,6 +127,8 @@ add new cached values.
 | `page:name:`        | 10 min | PageService    |
 | `preview:url:`      | 1 hour | PreviewService |
 
+Threads are not cached. `GET /api/threads` is cursor-paginated and must not serve a stale first page after a write.
+
 ## Auth quick reference
 
 - `s.authMiddleware.RequireAuth()`        — any logged-in user

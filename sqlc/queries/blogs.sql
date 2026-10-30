@@ -1,7 +1,7 @@
 -- name: CreateBlog :one
-INSERT INTO blogs (title, slug, date, lang, duration, tags, description, is_published, content)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at;
+INSERT INTO blogs (title, slug, date, lang, duration, tags, description, content)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, title, slug, date, lang, duration, tags, description, created_at, updated_at;
 
 -- name: GetBlogByID :one
 SELECT * FROM blogs
@@ -12,43 +12,34 @@ SELECT * FROM blogs
 WHERE slug = $1;
 
 -- name: GetBlogs :many
-SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at FROM blogs
-WHERE is_published = true
+SELECT id, title, slug, date, lang, duration, tags, description, created_at, updated_at FROM blogs
 ORDER BY date DESC
 LIMIT $1 OFFSET $2;
 
 -- name: GetBlogsByTag :many
-SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at FROM blogs
-WHERE is_published = true AND $1 = ANY(tags)
+SELECT id, title, slug, date, lang, duration, tags, description, created_at, updated_at FROM blogs
+WHERE $1 = ANY(tags)
 ORDER BY date DESC
 LIMIT $2 OFFSET $3;
 
 -- name: GetBlogsByLang :many
-SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at FROM blogs
-WHERE is_published = true AND lang = $1
+SELECT id, title, slug, date, lang, duration, tags, description, created_at, updated_at FROM blogs
+WHERE lang = $1
 ORDER BY date DESC
 LIMIT $2 OFFSET $3;
 
--- name: GetAllBlogs :many
-SELECT id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at FROM blogs
-ORDER BY date DESC
-LIMIT $1 OFFSET $2;
-
-
 -- name: UpdateBlogBySlug :one
 UPDATE blogs
-SET title = $2, date = $3, lang = $4, duration = $5, tags = $6, description = $7, is_published = $8, content = $9, updated_at = NOW()
+SET title = $2, date = $3, lang = $4, duration = $5, tags = $6, description = $7, content = $8, updated_at = NOW()
 WHERE slug = $1
-RETURNING id, title, slug, date, lang, duration, tags, description, is_published, created_at, updated_at;
+RETURNING id, title, slug, date, lang, duration, tags, description, created_at, updated_at;
 
 -- name: CountBlogs :one
-SELECT COUNT(*) FROM blogs
-WHERE is_published = true;
+SELECT COUNT(*) FROM blogs;
 
 -- name: CountBlogsByTag :one
 SELECT COUNT(*) FROM blogs
-WHERE is_published = true AND $1 = ANY(tags);
-
+WHERE $1 = ANY(tags);
 
 -- name: GetBlogWithMessageCountBySlug :one
 SELECT
@@ -64,4 +55,4 @@ WHERE b.slug = $1;
 
 -- name: DeleteBlogBySlug :exec
 DELETE FROM blogs
-WHERE slug = $1; 
+WHERE slug = $1;

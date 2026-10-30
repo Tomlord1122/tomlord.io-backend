@@ -21,6 +21,7 @@ type Server struct {
 	authService      *auth.AuthService
 	messageService   *services.MessageService
 	blogService      *services.BlogService
+	threadService    *services.ThreadService
 	pageService      *services.PageService
 	previewService   *services.PreviewService
 	analyticsService *services.AnalyticsService
@@ -41,6 +42,7 @@ func NewServer() (*http.Server, error) {
 	authService := auth.NewAuthService(dbService)
 	messageService := services.NewMessageService(dbService)
 	blogService := services.NewBlogService(dbService)
+	threadService := services.NewThreadService(dbService)
 	pageService := services.NewPageService(dbService)
 	previewService := services.NewPreviewService()
 	analyticsService := services.NewAnalyticsService(dbService)
@@ -59,6 +61,7 @@ func NewServer() (*http.Server, error) {
 		authService:      authService,
 		messageService:   messageService,
 		blogService:      blogService,
+		threadService:    threadService,
 		pageService:      pageService,
 		previewService:   previewService,
 		analyticsService: analyticsService,

@@ -18,7 +18,6 @@ import (
 func (s *Server) RegisterRoutes() http.Handler {
 	r := gin.Default()
 
-
 	// CORS configuration - use the centralized SetupCORS function
 	r.Use(SetupCORS())
 
@@ -54,6 +53,16 @@ func (s *Server) RegisterRoutes() http.Handler {
 			blogs.POST("", s.authMiddleware.RequireSuperUser(), s.createBlogHandler)
 			blogs.PUT("/:slug", s.authMiddleware.RequireSuperUser(), s.updateBlogHandler)
 			blogs.DELETE("/:slug", s.authMiddleware.RequireSuperUser(), s.deleteBlogHandler)
+		}
+
+		// Thread routes (short posts)
+		threads := api.Group("/threads")
+		{
+			threads.GET("", s.listThreadsHandler)
+			threads.GET("/:id", s.getThreadHandler)
+			threads.POST("", s.authMiddleware.RequireSuperUser(), s.createThreadHandler)
+			threads.PUT("/:id", s.authMiddleware.RequireSuperUser(), s.updateThreadHandler)
+			threads.DELETE("/:id", s.authMiddleware.RequireSuperUser(), s.deleteThreadHandler)
 		}
 
 		// Page routes (CMS)
@@ -366,14 +375,13 @@ func (s *Server) listBlogsHandler(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	tag := c.Query("tag")
 	lang := c.Query("lang")
-	publishedOnly := c.DefaultQuery("published", "true") == "true"
+	// ?published= is ignored. The column is gone and every stored post is public.
 
 	req := services.ListBlogsRequest{
-		Limit:         int32(limit),
-		Offset:        int32(offset),
-		Tag:           tag,
-		Lang:          lang,
-		PublishedOnly: publishedOnly,
+		Limit:  int32(limit),
+		Offset: int32(offset),
+		Tag:    tag,
+		Lang:   lang,
 	}
 
 	blogs, err := s.blogService.ListBlogs(c.Request.Context(), req)
@@ -468,7 +476,6 @@ func (s *Server) syncBlogsHandler(c *gin.Context) {
 				Tags:        blogReq.Tags,
 				Description: blogReq.Description,
 				Content:     blogReq.Content,
-				IsPublished: blogReq.IsPublished,
 			}
 
 			blog, err := s.blogService.UpdateBlogBySlug(c.Request.Context(), blogReq.Slug, updateReq)
@@ -605,8 +612,8 @@ func (s *Server) trackVisitorHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"today_count": stats.TodayCount,
-		"total_count": stats.TotalCount,
+		"today_count":  stats.TodayCount,
+		"total_count":  stats.TotalCount,
 		"is_new_visit": stats.IsNewVisit,
 		"recent":       stats.Recent,
 	})
