@@ -1,7 +1,7 @@
 -- Short posts for the public /thread timeline.
 -- Cursor pagination uses (created_at, id), so both stay unique and indexed together.
 CREATE TABLE threads (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
