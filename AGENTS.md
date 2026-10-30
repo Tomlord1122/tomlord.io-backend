@@ -159,6 +159,7 @@ GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET
 FRONTEND_URL                # used for OAuth redirect target
 ALLOWED_ORIGINS             # comma-separated CORS allow-list
+AUTH_SUPER_USER_EMAILS      # comma-separated admin emails; unset means no admin
 SYNC_TOKEN                  # protects /api/sync-blogs
 ```
 

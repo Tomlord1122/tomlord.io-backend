@@ -210,13 +210,9 @@ func (a *AuthMiddleware) IsSuperUser(c *gin.Context) bool {
 		return false
 	}
 
-	// Get super user emails from environment variable (comma-separated)
+	// Super user emails come from AUTH_SUPER_USER_EMAILS (comma-separated).
+	// If unset, nobody is a super user.
 	superUserEmails := viper.GetString("AUTH_SUPER_USER_EMAILS")
-	if superUserEmails == "" {
-		// Fallback to default
-		superUserEmails = "r12944044@csie.ntu.edu.tw"
-	}
-
 	userEmail := email.(string)
 	for _, superEmail := range strings.Split(superUserEmails, ",") {
 		if strings.TrimSpace(superEmail) == userEmail {
